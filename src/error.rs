@@ -178,3 +178,27 @@ impl From<i32> for InternalLibrawError {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+#[repr(transparent)]
+pub struct FfiError {
+    code: core::ffi::c_int,
+}
+
+pub trait ToFfi {
+    type Output;
+    fn to_ffi(self, code: i32) -> Self::Output;
+}
+
+impl<T, E> ToFfi for Result<T, E> {
+    type Output = Result<T, FfiError>;
+    fn to_ffi(self, code: i32) -> Self::Output {
+        // FfiError { code }
+        match self {
+            Ok(v) => Ok(v),
+            Err(_) => Err(FfiError { code }),
+        }
+    }
+}
+
+// pub type FfiResult<T> = Result<i32, FfiError>;
