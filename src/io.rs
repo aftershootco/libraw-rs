@@ -346,65 +346,80 @@ pub struct LibrawOpaqueDatastream {
 }
 
 impl LibrawOpaqueDatastream {
-    #[no_mangle]
-    pub unsafe extern "C" fn lod_valid(this: *mut Self) -> i32 {
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
-        if this.inner.is_empty().unwrap_or(true) {
-            0
-        } else {
-            1
+    pub fn new(inner: impl LibrawBufferedDatastream + 'static) -> Self {
+        Self {
+            inner: Box::new(inner),
         }
     }
+}
 
-    #[no_mangle]
-    pub unsafe extern "C" fn lod_read(
-        this: *mut Self,
-        buffer: *const libc::c_void,
-        sz: usize,
-        nmemb: usize,
-    ) -> i32 {
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
-        LibrawDatastream::read(&mut this.inner, buffer, sz, nmemb)
+#[no_mangle]
+pub unsafe extern "C" fn lod_valid(this: *mut LibrawOpaqueDatastream) -> i32 {
+    assert!(!this.is_null());
+    let this = unsafe { &mut *this };
+    if this.inner.is_empty().unwrap_or(true) {
+        0
+    } else {
+        1
     }
+}
 
-    #[no_mangle]
-    pub unsafe extern "C" fn lod_seek(this: *mut Self, offset: i64, whence: u32) -> i32 {
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
-        LibrawDatastream::seek(&mut this.inner, offset, whence)
-    }
+#[no_mangle]
+pub unsafe extern "C" fn lod_read(
+    this: *mut LibrawOpaqueDatastream,
+    buffer: *const libc::c_void,
+    sz: usize,
+    nmemb: usize,
+) -> i32 {
+    assert!(!this.is_null());
+    let this = unsafe { &mut *this };
+    LibrawDatastream::read(&mut this.inner, buffer, sz, nmemb)
+}
 
-    #[no_mangle]
-    pub unsafe extern "C" fn lod_tell(this: *mut Self) -> i64 {
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
-        LibrawDatastream::tell(&mut this.inner)
-    }
+#[no_mangle]
+pub unsafe extern "C" fn lod_seek(this: *mut LibrawOpaqueDatastream, offset: i64, whence: u32) -> i32 {
+    assert!(!this.is_null());
+    let this = unsafe { &mut *this };
+    LibrawDatastream::seek(&mut this.inner, offset, whence)
+}
 
-    #[no_mangle]
-    pub unsafe extern "C" fn lod_size(this: *mut Self) -> i64 {
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
-        LibrawDatastream::size(&mut this.inner)
-    }
+#[no_mangle]
+pub unsafe extern "C" fn lod_tell(this: *mut LibrawOpaqueDatastream) -> i64 {
+    assert!(!this.is_null());
+    let this = unsafe { &mut *this };
+    LibrawDatastream::tell(&mut this.inner)
+}
 
-    #[no_mangle]
-    pub unsafe extern "C" fn lod_get_char(this: *mut Self) -> libc::c_int {
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
-        LibrawDatastream::get_char(&mut this.inner)
-    }
+#[no_mangle]
+pub unsafe extern "C" fn lod_eof(this: *mut LibrawOpaqueDatastream) -> i32 {
+    assert!(!this.is_null());
+    let this = unsafe { &mut *this };
+    LibrawDatastream::eof_(&mut this.inner)
+}
 
-    #[no_mangle]
-    pub unsafe extern "C" fn lod_gets(
-        this: *mut Self,
-        buffer: *mut libc::c_char,
-        size: libc::c_int,
-    ) -> *const libc::c_char {
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
-        LibrawBufferedDatastream::gets(&mut this.inner, buffer, size)
-    }
+#[no_mangle]
+pub unsafe extern "C" fn lod_size(this: *mut LibrawOpaqueDatastream) -> i64 {
+    assert!(!this.is_null());
+    let this = unsafe { &mut *this };
+    LibrawDatastream::size(&mut this.inner)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn lod_get_char(this: *mut LibrawOpaqueDatastream) -> libc::c_int {
+    assert!(!this.is_null());
+    let this = unsafe { &mut *this };
+    LibrawDatastream::get_char(&mut this.inner)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn lod_gets(
+    this: *mut LibrawOpaqueDatastream,
+    buffer: *mut libc::c_char,
+    size: libc::c_int,
+) -> *mut libc::c_char {
+    assert!(!this.is_null());
+    let this = unsafe { &mut *this };
+    // WARNING: 
+    // Can't be sure why it needs a *mut pointer but I hope it doesn't write to it
+    LibrawBufferedDatastream::gets(&mut this.inner, buffer, size) as *mut libc::c_char
 }

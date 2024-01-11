@@ -1,13 +1,17 @@
 #[macro_use]
 pub mod error;
+pub mod dcraw;
+pub mod image;
 pub mod io;
+pub mod processor;
+use processor::Processor;
 // pub mod dcraw;
 // pub mod defaults;
 // #[cfg(feature = "exif")]
 // pub mod exif;
 // pub mod orientation;
 // pub mod progress;
-// pub mod traits;
+pub mod traits;
 
 use alloc::sync::Arc;
 pub use error::LibrawError;
@@ -37,3 +41,36 @@ pub struct EmptyProcessor {
     pub(crate) inner: NonNull<sys::libraw_data_t>,
 }
 
+impl EmptyProcessor {
+    pub fn new() -> Result<Self, LibrawError> {
+        let inner = unsafe { sys::libraw_init(0) };
+        if inner.is_null() {
+            return Err(LibrawError::CustomError(
+                "libraw_init returned null".to_string().into(),
+            ));
+        }
+        Ok(Self {
+            inner: unsafe { NonNull::new_unchecked(inner) },
+        })
+    }
+
+    pub fn open(mut self, path: impl AsRef<Path>) -> Result<Processor, LibrawError> {
+        let file = std::fs::File::open(path)?;
+        let buffered = std::io::BufReader::new(file);
+        let mut io = io::LibrawOpaqueDatastream::new(buffered);
+        let ret = unsafe { libraw_open_io(self.inner.as_mut(), &mut io) };
+        LibrawError::check(ret)?;
+        core::mem::forget(io);
+        Ok(Processor { inner: self.inner })
+    }
+}
+
+
+extern {
+    /// cbindgen:no-export
+    #[link(name = "libraw_open_io")]
+    fn libraw_open_io(
+        data: *mut sys::libraw_data_t,
+        io: *mut io::LibrawOpaqueDatastream,
+    ) -> libc::c_int;
+}

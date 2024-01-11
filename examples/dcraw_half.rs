@@ -6,8 +6,8 @@ pub fn main() -> anyhow::Result<()> {
         // let mut p = Processor::builder()
         //     .with_params([Params::HalfSize(true)])
         //     .build();
-        let mut p = libraw_r::defaults::half_size();
-        p.open(&arg)?;
+        let mut p = libraw_r::EmptyProcessor::new()?;
+        let mut p = p.open(&arg)?;
         println!(
             "Processing {arg} ({}, {})",
             p.idata().make.as_ascii(),
@@ -15,8 +15,8 @@ pub fn main() -> anyhow::Result<()> {
         );
         p.unpack()?;
         p.dcraw_process()?;
-        p.dcraw_ppm_tiff_writer(Path::new(&arg).with_extension("ppm"))?;
-        println!("Writing to {arg}.ppm");
+        // p.dcraw_ppm_tiff_writer(Path::new(&arg).with_extension("ppm"))?;
+        // println!("Writing to {arg}.ppm");
     }
     Ok(())
 }

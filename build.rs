@@ -40,6 +40,9 @@ pub fn libread(out_dir: impl AsRef<Path>) -> anyhow::Result<()> {
 
 pub fn riio(out_dir: impl AsRef<Path>) -> anyhow::Result<()> {
     println!("cargo:rerun-if-changed=src/io.rs");
+    let includes = std::env::var("DEP_RAW_R_INCLUDE")?;
+    let includes = std::env::split_paths(&includes).collect::<Vec<_>>();
+
     cbindgen::Builder::new()
         .with_crate(env!("CARGO_MANIFEST_DIR"))
         .with_language(cbindgen::Language::C)
@@ -48,10 +51,21 @@ pub fn riio(out_dir: impl AsRef<Path>) -> anyhow::Result<()> {
         .with_include_guard("RUST_IO_H")
         .generate()
         .expect("Unable to generate bindings")
-        .write_to_file("io/io.h");
+        .write_to_file("io/riio.h");
 
-    let includes = std::env::var("DEP_RAW_R_INCLUDE")?;
-    let includes = std::env::split_paths(&includes).collect::<Vec<_>>();
+    // dbg!(&includes);
+    // bindgen::Builder::default()
+    //     // .header("io/io.cpp")
+    //     .clang_args(
+    //         includes
+    //             .iter()
+    //             .map(|p| format!("-I{}", p.to_str().unwrap())),
+    //     )
+    //     .generate()
+    //     .unwrap()
+    //     .write_to_file("src/wrapper.rs")
+    //     .unwrap();
+
     let mut riio = cc::Build::new();
     riio.includes(includes)
         .cpp(true)

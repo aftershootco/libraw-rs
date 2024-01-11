@@ -9,6 +9,10 @@ repository = "https://github.com/aftershootco/libraw-sys"
 homepage = "https://github.com/aftershootco/libraw-sys"
 publish = ["ktra"]
 
+[lib]
+name = "libraw_r"
+crate-type = ["cdylib", "rlib"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -34,6 +38,7 @@ default = ["exif"]
 
 [build-dependencies]
 anyhow = "1.0.58"
+bindgen = "0.69.1"
 cbindgen = "0.26.0"
 cc = "1.0.73"
 

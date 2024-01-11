@@ -1,3 +1,4 @@
+use crate::image::*;
 use crate::*;
 impl Processor {
     pub fn dcraw_process_make_mem_thumb(&mut self) -> Result<ProcessedImage, LibrawError> {
@@ -29,13 +30,13 @@ impl Processor {
         )
     }
 
-    pub fn dcraw_ppm_tiff_writer(
-        self,
-        path: impl AsRef<std::path::Path>,
-    ) -> Result<(), LibrawError> {
-        LibrawError::check(unsafe {
-            sys::libraw_dcraw_ppm_tiff_writer(self.inner.as_ptr(), path_to_cstr(path)?.as_ptr())
-        })?;
-        Ok(())
-    }
+    // pub fn dcraw_ppm_tiff_writer(
+    //     self,
+    //     path: impl AsRef<std::path::Path>,
+    // ) -> Result<(), LibrawError> {
+    //     LibrawError::check(unsafe {
+    //         sys::libraw_dcraw_ppm_tiff_writer(self.inner.as_ptr(), path_to_cstr(path)?.as_ptr())
+    //     })?;
+    //     Ok(())
+    // }
 }
