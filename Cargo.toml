@@ -34,6 +34,7 @@ default = ["exif"]
 
 [build-dependencies]
 anyhow = "1.0.58"
+cbindgen = "0.26.0"
 cc = "1.0.73"
 
 [dev-dependencies]

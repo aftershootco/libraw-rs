@@ -107,19 +107,19 @@
 // #endif
 // };
 // ```
-pub trait LibrawDatastream: Read + Seek + Sized {
+pub trait LibrawDatastream: Read + Seek + Eof {
     /// # Safety
     ///
     /// This function will be called from ffi (c++)
     /// This function is unsafe because it dereferences `this` ( self )
-    unsafe fn read(this: *mut Self, buffer: *const libc::c_void, sz: usize, nmemb: usize) -> i32 {
-        assert!(!this.is_null());
-        let this = &mut *this;
+    unsafe fn read(&mut self, buffer: *const libc::c_void, sz: usize, nmemb: usize) -> i32 {
+        // assert!(!this.is_null());
+        // let this = &mut *this;
         let to_read = sz * nmemb;
         if to_read < 1 {
             return 0;
         }
-        if this
+        if self
             .read_exact(core::slice::from_raw_parts_mut(
                 buffer.cast::<u8>().cast_mut(),
                 to_read,
@@ -134,13 +134,15 @@ pub trait LibrawDatastream: Read + Seek + Sized {
     /// # Safety
     ///
     /// Sus
-    unsafe fn seek(this: *mut Self, offset: i64, whence: u32) -> i32 {
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
+    unsafe fn seek(&mut self, offset: i64, whence: u32) -> i32 {
+        // assert!(!this.is_null());
+        // let this = unsafe { &mut *this };
         match whence {
-            sys::SEEK_SET => this.seek(std::io::SeekFrom::Start(offset as u64)).ok(),
-            sys::SEEK_CUR => this.seek(std::io::SeekFrom::Current(offset)).ok(),
-            sys::SEEK_END => this.seek(std::io::SeekFrom::End(offset)).ok(),
+            sys::SEEK_SET => {
+                std::io::Seek::seek(self, std::io::SeekFrom::Start(offset as u64)).ok()
+            }
+            sys::SEEK_CUR => std::io::Seek::seek(self, std::io::SeekFrom::Current(offset)).ok(),
+            sys::SEEK_END => std::io::Seek::seek(self, std::io::SeekFrom::End(offset)).ok(),
             _ => return 0,
         };
         0
@@ -148,43 +150,45 @@ pub trait LibrawDatastream: Read + Seek + Sized {
     /// # Safety
     ///
     /// This function is unsafe because it dereferences a raw pointer.
-    unsafe fn tell(this: *mut Self) -> i64 {
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
-        this.stream_position().map(|f| f as i64).unwrap_or(-1)
+    unsafe fn tell(&mut self) -> i64 {
+        // assert!(!this.is_null());
+        // let this = unsafe { &mut *this };
+        self.stream_position().map(|f| f as i64).unwrap_or(-1)
     }
     /// # Safety
     ///
     /// This function is unsafe because it dereferences a raw pointer.
-    unsafe fn eof(this: *mut Self) -> i32 {
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
-        <Self as Eof>::eof(this).map(|f| f as i32).unwrap_or(0) - 1
+    unsafe fn eof_(&mut self) -> i32 {
+        // assert!(!this.is_null());
+        // let this = unsafe { &mut *this };
+        Eof::eof(self).map(|f| f as i32).unwrap_or(0) - 1
     }
 
     /// # Safety
     ///
     /// This function is unsafe because it dereferences a raw pointer.
-    unsafe fn size(this: *mut Self) -> i64 {
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
-        <Self as Eof>::len(this).map(|f| f as i64).unwrap_or(-1)
+    unsafe fn size(&mut self) -> i64 {
+        // assert!(!this.is_null());
+        // let this = unsafe { &mut *this };
+        Eof::len(self).map(|f| f as i64).unwrap_or(-1)
     }
 
     /// # Safety
     ///
     /// Reads a char from the buffer and casts it as i32 and in case of error returns -1
-    unsafe fn get_char(this: *mut Self) -> libc::c_int {
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
+    unsafe fn get_char(&mut self) -> libc::c_int {
+        // assert!(!this.is_null());
+        // let this = unsafe { &mut *this };
         let mut buf = [0u8];
-        if this.read_exact(&mut buf).is_err() {
+        if self.read_exact(&mut buf).is_err() {
             -1
         } else {
             buf[0] as libc::c_int
         }
     }
 }
+
+impl<T: Read + Seek + Eof> LibrawDatastream for T {}
 
 pub trait LibrawBufferedDatastream: LibrawDatastream + BufRead {
     /// # Safety
@@ -193,23 +197,19 @@ pub trait LibrawBufferedDatastream: LibrawDatastream + BufRead {
     /// This function is like fgets(3)
     /// The C++ function which wraps this
     /// `char *LibRaw_buffer_datastream::gets(char *s, int sz)`
-    unsafe fn gets(
-        this: *mut Self,
-        buffer: *mut libc::c_char,
-        size: libc::c_int,
-    ) -> *const libc::c_char {
+    unsafe fn gets(&mut self, buffer: *mut libc::c_char, size: libc::c_int) -> *const libc::c_char {
         if size < 1 {
             return core::ptr::null();
         }
-        assert!(!this.is_null());
-        let this = unsafe { &mut *this };
-        if this.eof().unwrap_or(true) {
+        // assert!(!this.is_null());
+        // let this = unsafe { &mut *this };
+        if self.eof().unwrap_or(true) {
             return core::ptr::null();
         }
         assert!(!buffer.is_null());
         let size = size.clamp(u16::MAX.into(), u16::MIN.into()) as usize;
         let buffer: &mut [u8] = core::slice::from_raw_parts_mut(buffer.cast(), size);
-        let x = read_until(this, b'\n', buffer);
+        let x = read_until(self, b'\n', buffer);
         if x.is_err() {
             return core::ptr::null();
         }
@@ -222,6 +222,8 @@ pub trait LibrawBufferedDatastream: LibrawDatastream + BufRead {
         buffer.as_ptr().cast()
     }
 }
+
+impl<T: LibrawDatastream + BufRead> LibrawBufferedDatastream for T {}
 
 use core::ops::{Deref, DerefMut};
 // pub trait Libraw
@@ -262,6 +264,7 @@ impl<T: Seek> Eof for T {}
 /// Abstract Datastream
 ///
 /// Using the rust version of the abstract datastream
+#[repr(C)]
 pub struct AbstractDatastream<T: Read + Seek + Sized> {
     inner: T,
 }
@@ -272,24 +275,6 @@ impl<T: Read + Seek + Sized> AbstractDatastream<T> {
     }
 }
 
-impl<T: Read + Seek + Sized> DerefMut for AbstractDatastream<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
-
-impl<T: Read + Seek + Sized> Read for AbstractDatastream<T> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.inner.read(buf)
-    }
-}
-
-impl<T: Read + Seek + Sized> Seek for AbstractDatastream<T> {
-    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        self.inner.seek(pos)
-    }
-}
-
 impl<T: Read + Seek + Sized> Deref for AbstractDatastream<T> {
     type Target = T;
 
@@ -297,6 +282,24 @@ impl<T: Read + Seek + Sized> Deref for AbstractDatastream<T> {
         &self.inner
     }
 }
+
+impl<T: Read + Seek + Sized> DerefMut for AbstractDatastream<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+// impl<T: Read + Seek + Sized> Read for AbstractDatastream<T> {
+//     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+//         self.inner.read(buf)
+//     }
+// }
+
+// impl<T: Read + Seek + Sized> Seek for AbstractDatastream<T> {
+//     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+//         self.inner.seek(pos)
+//     }
+// }
 
 // Taken from rust's stdlib with some changes
 fn read_until<R: BufRead + ?Sized>(
@@ -333,5 +336,75 @@ fn read_until<R: BufRead + ?Sized>(
         if done || used == 0 {
             return Ok(read);
         }
+    }
+}
+
+// impl<T: LibrawBufferedDatastream> AbstractDatastream<T> {
+#[repr(C)]
+pub struct LibrawOpaqueDatastream {
+    inner: Box<dyn LibrawBufferedDatastream>,
+}
+
+impl LibrawOpaqueDatastream {
+    #[no_mangle]
+    pub unsafe extern "C" fn lod_valid(this: *mut Self) -> i32 {
+        assert!(!this.is_null());
+        let this = unsafe { &mut *this };
+        if this.inner.is_empty().unwrap_or(true) {
+            0
+        } else {
+            1
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn lod_read(
+        this: *mut Self,
+        buffer: *const libc::c_void,
+        sz: usize,
+        nmemb: usize,
+    ) -> i32 {
+        assert!(!this.is_null());
+        let this = unsafe { &mut *this };
+        LibrawDatastream::read(&mut this.inner, buffer, sz, nmemb)
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn lod_seek(this: *mut Self, offset: i64, whence: u32) -> i32 {
+        assert!(!this.is_null());
+        let this = unsafe { &mut *this };
+        LibrawDatastream::seek(&mut this.inner, offset, whence)
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn lod_tell(this: *mut Self) -> i64 {
+        assert!(!this.is_null());
+        let this = unsafe { &mut *this };
+        LibrawDatastream::tell(&mut this.inner)
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn lod_size(this: *mut Self) -> i64 {
+        assert!(!this.is_null());
+        let this = unsafe { &mut *this };
+        LibrawDatastream::size(&mut this.inner)
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn lod_get_char(this: *mut Self) -> libc::c_int {
+        assert!(!this.is_null());
+        let this = unsafe { &mut *this };
+        LibrawDatastream::get_char(&mut this.inner)
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn lod_gets(
+        this: *mut Self,
+        buffer: *mut libc::c_char,
+        size: libc::c_int,
+    ) -> *const libc::c_char {
+        assert!(!this.is_null());
+        let this = unsafe { &mut *this };
+        LibrawBufferedDatastream::gets(&mut this.inner, buffer, size)
     }
 }
