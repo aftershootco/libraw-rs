@@ -1,3 +1,4 @@
+pub mod bindings;
 ///  Input layer abstraction
 ///
 ///  class LibRaw_abstract_datastream - abstract RAW read interface
@@ -135,24 +136,16 @@ pub trait LibrawDatastream: Read + Seek + Eof {
     ///
     /// Sus
     unsafe fn seek(&mut self, offset: i64, whence: u32) -> i32 {
-        // assert!(!this.is_null());
-        // let this = unsafe { &mut *this };
-        if offset == 1856 {
-            println!("offset: {}", offset);
-            let x = std::io::Seek::seek(self, std::io::SeekFrom::Start(0));
-            println!("x: {:?}", x);
-        }
-        match match whence {
+        match whence {
             sys::SEEK_SET => {
                 std::io::Seek::seek(self, std::io::SeekFrom::Start(offset as u64)).ok()
             }
             sys::SEEK_CUR => std::io::Seek::seek(self, std::io::SeekFrom::Current(offset)).ok(),
             sys::SEEK_END => std::io::Seek::seek(self, std::io::SeekFrom::End(offset)).ok(),
             _ => return 0,
-        } {
-            None => -1,
-            Some(_) => 0,
         }
+        .expect("Failed to seek");
+        return 0;
     }
     /// # Safety
     ///
@@ -441,5 +434,5 @@ pub unsafe extern "C" fn lod_scanf_one(
     fmt: *const libc::c_char,
     val: *mut libc::c_void,
 ) -> libc::c_int {
-    panic!();
+    todo!();
 }

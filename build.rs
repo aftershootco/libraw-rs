@@ -45,26 +45,29 @@ pub fn riio(out_dir: impl AsRef<Path>) -> anyhow::Result<()> {
 
     cbindgen::Builder::new()
         .with_crate(env!("CARGO_MANIFEST_DIR"))
-        .with_language(cbindgen::Language::Cxx)
+        .with_language(cbindgen::Language::C)
         .with_no_includes()
+        .with_cpp_compat(true)
         .with_header("#include<stdint.h>")
         .with_include_guard("RUST_IO_H")
         .generate()
         .expect("Unable to generate bindings")
         .write_to_file("io/riio.h");
 
-    // dbg!(&includes);
-    // bindgen::Builder::default()
-    //     // .header("io/io.cpp")
-    //     .clang_args(
-    //         includes
-    //             .iter()
-    //             .map(|p| format!("-I{}", p.to_str().unwrap())),
-    //     )
-    //     .generate()
-    //     .unwrap()
-    //     .write_to_file("src/wrapper.rs")
-    //     .unwrap();
+    let clang_args = includes
+        .iter()
+        .map(|p| format!("-I{}", p.to_str().unwrap()))
+        .inspect(|p| println!("cargo:warning=clang_args: {}", p));
+
+    bindgen::Builder::default()
+        .header("io/io.h")
+        .allowlist_file("io/io.h")
+        .blocklist_type(".*")
+        .clang_args(clang_args)
+        .generate()
+        .expect("failed to generate bindings")
+        .write_to_file(out_dir.as_ref().join("io.rs"))
+        .expect("failed to write bindings");
 
     let mut riio = cc::Build::new();
     riio.includes(includes)
@@ -79,6 +82,7 @@ pub fn riio(out_dir: impl AsRef<Path>) -> anyhow::Result<()> {
     riio.compile("riio");
 
     println!("cargo:rerun-if-changed=io/io.cpp");
+    println!("cargo:rerun-if-changed=io/io.h");
     println!("cargo:rustc-link-lib=static=riio");
     println!(
         "cargo:rustc-link-search=native={}",

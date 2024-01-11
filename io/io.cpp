@@ -26,7 +26,7 @@ public:
   LibrawOpaqueDatastream *inner;
 };
 
-extern "C" int libraw_open_io(libraw_data_t *libraw,
+int libraw_open_io(libraw_data_t *libraw,
                               LibrawOpaqueDatastream *io) {
   LibrawIO* libraw_io = new LibrawIO(io);
   LibRaw *lr = (LibRaw *)libraw->parent_class;

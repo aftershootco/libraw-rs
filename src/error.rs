@@ -174,7 +174,7 @@ impl From<i32> for InternalLibrawError {
             e if e == TooBig as i32 => TooBig,
             e if e == MempoolOverflow as i32 => MempoolOverflow,
             e if e == Self::SUCCESS => panic!("This call was a success"),
-            _ => unreachable!("If the error is reached then libraw has added new error types"),
+            _ => unreachable!("If the error is reached then libraw has added new error types, {e}"),
         }
     }
 }

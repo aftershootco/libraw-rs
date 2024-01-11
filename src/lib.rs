@@ -58,19 +58,9 @@ impl EmptyProcessor {
         let file = std::fs::File::open(path)?;
         let buffered = std::io::BufReader::new(file);
         let mut io = io::LibrawOpaqueDatastream::new(buffered);
-        let ret = unsafe { libraw_open_io(self.inner.as_mut(), &mut io) };
+        let ret = unsafe { io::bindings::libraw_open_io(self.inner.as_mut(), &mut io) };
         LibrawError::check(ret)?;
         core::mem::forget(io);
         Ok(Processor { inner: self.inner })
     }
-}
-
-
-extern {
-    /// cbindgen:no-export
-    #[link(name = "libraw_open_io")]
-    fn libraw_open_io(
-        data: *mut sys::libraw_data_t,
-        io: *mut io::LibrawOpaqueDatastream,
-    ) -> libc::c_int;
 }
