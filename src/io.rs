@@ -137,15 +137,22 @@ pub trait LibrawDatastream: Read + Seek + Eof {
     unsafe fn seek(&mut self, offset: i64, whence: u32) -> i32 {
         // assert!(!this.is_null());
         // let this = unsafe { &mut *this };
-        match whence {
+        if offset == 1856 {
+            println!("offset: {}", offset);
+            let x = std::io::Seek::seek(self, std::io::SeekFrom::Start(0));
+            println!("x: {:?}", x);
+        }
+        match match whence {
             sys::SEEK_SET => {
                 std::io::Seek::seek(self, std::io::SeekFrom::Start(offset as u64)).ok()
             }
             sys::SEEK_CUR => std::io::Seek::seek(self, std::io::SeekFrom::Current(offset)).ok(),
             sys::SEEK_END => std::io::Seek::seek(self, std::io::SeekFrom::End(offset)).ok(),
             _ => return 0,
-        };
-        0
+        } {
+            None => -1,
+            Some(_) => 0,
+        }
     }
     /// # Safety
     ///
@@ -207,7 +214,7 @@ pub trait LibrawBufferedDatastream: LibrawDatastream + BufRead {
             return core::ptr::null();
         }
         assert!(!buffer.is_null());
-        let size = size.clamp(u16::MAX.into(), u16::MIN.into()) as usize;
+        let size = size.clamp(u16::MIN.into(), u16::MAX.into()) as usize;
         let buffer: &mut [u8] = core::slice::from_raw_parts_mut(buffer.cast(), size);
         let x = read_until(self, b'\n', buffer);
         if x.is_err() {
@@ -377,7 +384,11 @@ pub unsafe extern "C" fn lod_read(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn lod_seek(this: *mut LibrawOpaqueDatastream, offset: i64, whence: u32) -> i32 {
+pub unsafe extern "C" fn lod_seek(
+    this: *mut LibrawOpaqueDatastream,
+    offset: i64,
+    whence: u32,
+) -> i32 {
     assert!(!this.is_null());
     let this = unsafe { &mut *this };
     LibrawDatastream::seek(&mut this.inner, offset, whence)
@@ -419,7 +430,16 @@ pub unsafe extern "C" fn lod_gets(
 ) -> *mut libc::c_char {
     assert!(!this.is_null());
     let this = unsafe { &mut *this };
-    // WARNING: 
+    // WARNING:
     // Can't be sure why it needs a *mut pointer but I hope it doesn't write to it
     LibrawBufferedDatastream::gets(&mut this.inner, buffer, size) as *mut libc::c_char
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn lod_scanf_one(
+    this: *mut LibrawOpaqueDatastream,
+    fmt: *const libc::c_char,
+    val: *mut libc::c_void,
+) -> libc::c_int {
+    panic!();
 }

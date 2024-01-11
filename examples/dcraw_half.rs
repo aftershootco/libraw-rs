@@ -6,7 +6,7 @@ pub fn main() -> anyhow::Result<()> {
         // let mut p = Processor::builder()
         //     .with_params([Params::HalfSize(true)])
         //     .build();
-        let mut p = libraw_r::EmptyProcessor::new()?;
+        let p = libraw_r::EmptyProcessor::new()?;
         let mut p = p.open(&arg)?;
         println!(
             "Processing {arg} ({}, {})",

@@ -15,8 +15,7 @@ public:
   virtual INT64 tell() { return lod_tell(inner); }
   virtual INT64 size() { return lod_size(inner); }
   virtual int scanf_one(const char *fmt, void *val) {
-    /* return lod_scanf_one(inner); */
-    return 0;
+      return lod_scanf_one(inner, fmt, val);
   }
   virtual int get_char() { return lod_get_char(inner); }
   virtual char *gets(char *str, int maxlen) {
@@ -31,6 +30,7 @@ extern "C" int libraw_open_io(libraw_data_t *libraw,
                               LibrawOpaqueDatastream *io) {
   LibrawIO* libraw_io = new LibrawIO(io);
   LibRaw *lr = (LibRaw *)libraw->parent_class;
+  /* printf("libraw_open_io\n"); */
 
   return lr->open_datastream(libraw_io);
 }
