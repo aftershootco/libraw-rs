@@ -134,7 +134,7 @@ pub trait LibrawDatastream: Read + Seek + Eof {
     }
     /// # Safety
     ///
-    /// Sus
+    /// 
     unsafe fn seek(&mut self, offset: i64, whence: u32) -> i32 {
         match whence {
             sys::SEEK_SET => {
@@ -341,12 +341,12 @@ fn read_until<R: BufRead + ?Sized>(
 
 // impl<T: LibrawBufferedDatastream> AbstractDatastream<T> {
 #[repr(C)]
-pub struct LibrawOpaqueDatastream {
-    inner: Box<dyn LibrawBufferedDatastream>,
+pub struct LibrawOpaqueDatastream<'a> {
+    inner: Box<dyn LibrawBufferedDatastream + 'a>,
 }
 
-impl LibrawOpaqueDatastream {
-    pub fn new(inner: impl LibrawBufferedDatastream + 'static) -> Self {
+impl<'a> LibrawOpaqueDatastream<'a> {
+    pub fn new(inner: impl LibrawBufferedDatastream + 'a) -> Self {
         Self {
             inner: Box::new(inner),
         }

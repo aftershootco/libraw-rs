@@ -54,13 +54,14 @@ impl EmptyProcessor {
         })
     }
 
-    pub fn open(mut self, path: impl AsRef<Path>) -> Result<Processor, LibrawError> {
-        let file = std::fs::File::open(path)?;
-        let buffered = std::io::BufReader::new(file);
-        let mut io = io::LibrawOpaqueDatastream::new(buffered);
+    pub fn open<'reader, T: std::io::BufRead + std::io::Seek + 'reader>(
+        mut self,
+        reader: T,
+    ) -> Result<Processor<'reader>, LibrawError> {
+        let mut io = io::LibrawOpaqueDatastream::new(reader);
         let ret = unsafe { io::bindings::libraw_open_io(self.inner.as_mut(), &mut io) };
         LibrawError::check(ret)?;
         core::mem::forget(io);
-        Ok(Processor { inner: self.inner })
+        Ok(unsafe { Processor::new(self.inner) })
     }
 }
