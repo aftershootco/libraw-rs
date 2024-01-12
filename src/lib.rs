@@ -4,7 +4,9 @@ pub mod dcraw;
 pub mod image;
 pub mod io;
 pub mod processor;
+pub use io::{LibrawBufferedDatastream, LibrawDatastream, MaybeDebug};
 use processor::Processor;
+
 // pub mod dcraw;
 // pub mod defaults;
 // #[cfg(feature = "exif")]
@@ -13,16 +15,14 @@ use processor::Processor;
 // pub mod progress;
 pub mod traits;
 
-use alloc::sync::Arc;
 pub use error::LibrawError;
 
 extern crate alloc;
 extern crate libraw_sys as sys;
 use core::ptr::NonNull;
-use core::sync::atomic::AtomicBool;
 use semver::Version;
 use std::ffi::CString;
-use std::ops::Drop;
+use std::mem::ManuallyDrop;
 use std::path::Path;
 
 /// Returns the version of libraw the bindings were generated against
@@ -54,14 +54,18 @@ impl EmptyProcessor {
         })
     }
 
-    pub fn open<'reader, T: std::io::BufRead + std::io::Seek + 'reader>(
+    pub fn open<'reader, T: std::io::BufRead + std::io::Seek + MaybeDebug + 'reader>(
         mut self,
         reader: T,
     ) -> Result<Processor<'reader>, LibrawError> {
         let mut io = io::LibrawOpaqueDatastream::new(reader);
-        let ret = unsafe { io::bindings::libraw_open_io(self.inner.as_mut(), &mut io) };
+        let ret = unsafe {
+            io::bindings::libraw_open_io(self.inner.as_mut(), core::ptr::addr_of_mut!(io))
+        };
         LibrawError::check(ret)?;
-        core::mem::forget(io);
-        Ok(unsafe { Processor::new(self.inner) })
+        let mut p = unsafe { Processor::new(self.inner) };
+        let _ = ManuallyDrop::new(io);
+        // p.unpack()?;
+        Ok(p)
     }
 }

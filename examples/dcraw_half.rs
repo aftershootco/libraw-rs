@@ -1,6 +1,5 @@
 use libraw_r::traits::LRString;
-use std::path::Path;
-use std::sync::Arc;
+use std::{io::Seek, path::Path};
 
 pub fn main() -> anyhow::Result<()> {
     for arg in std::env::args().skip(1) {
@@ -9,8 +8,8 @@ pub fn main() -> anyhow::Result<()> {
         //     .build();
         let p = libraw_r::EmptyProcessor::new()?;
         let file = std::fs::File::open(&arg)?;
-        let mut buffered = std::io::BufReader::new(file);
-        let mut p = p.open(&mut buffered)?;
+        let buffered = std::io::BufReader::new(file);
+        let mut p = p.open(buffered)?;
         println!(
             "Processing {arg} ({}, {})",
             p.idata().make.as_ascii(),
@@ -19,7 +18,7 @@ pub fn main() -> anyhow::Result<()> {
         p.unpack()?;
         p.dcraw_process()?;
         p.dcraw_ppm_tiff_writer(Path::new(&arg).with_extension("ppm"))?;
-        drop(buffered);
+        // drop(buffered);
         println!("Writing to {arg}.ppm");
     }
     Ok(())

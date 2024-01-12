@@ -1,4 +1,17 @@
 pub mod bindings;
+
+#[cfg(feature = "debug")]
+pub trait MaybeDebug: core::fmt::Debug {}
+
+#[cfg(feature = "debug")]
+impl<T: core::fmt::Debug> MaybeDebug for T {}
+
+#[cfg(not(feature = "debug"))]
+pub trait MaybeDebug {}
+
+#[cfg(not(feature = "debug"))]
+impl<T> MaybeDebug for T {}
+
 ///  Input layer abstraction
 ///
 ///  class LibRaw_abstract_datastream - abstract RAW read interface
@@ -108,7 +121,7 @@ pub mod bindings;
 // #endif
 // };
 // ```
-pub trait LibrawDatastream: Read + Seek + Eof {
+pub trait LibrawDatastream: Read + Seek + Eof + MaybeDebug {
     /// # Safety
     ///
     /// This function will be called from ffi (c++)
@@ -134,7 +147,7 @@ pub trait LibrawDatastream: Read + Seek + Eof {
     }
     /// # Safety
     ///
-    /// 
+    ///
     unsafe fn seek(&mut self, offset: i64, whence: u32) -> i32 {
         match whence {
             sys::SEEK_SET => {
@@ -188,9 +201,9 @@ pub trait LibrawDatastream: Read + Seek + Eof {
     }
 }
 
-impl<T: Read + Seek + Eof> LibrawDatastream for T {}
+impl<T: Read + Seek + Eof + MaybeDebug> LibrawDatastream for T {}
 
-pub trait LibrawBufferedDatastream: LibrawDatastream + BufRead {
+pub trait LibrawBufferedDatastream: LibrawDatastream + BufRead + MaybeDebug {
     /// # Safety
     ///
     /// This function is unsafe because it dereferences a raw pointer and is called from ffi.
@@ -223,7 +236,7 @@ pub trait LibrawBufferedDatastream: LibrawDatastream + BufRead {
     }
 }
 
-impl<T: LibrawDatastream + BufRead> LibrawBufferedDatastream for T {}
+impl<T: LibrawDatastream + BufRead + MaybeDebug> LibrawBufferedDatastream for T {}
 
 use core::ops::{Deref, DerefMut};
 // pub trait Libraw
@@ -341,12 +354,13 @@ fn read_until<R: BufRead + ?Sized>(
 
 // impl<T: LibrawBufferedDatastream> AbstractDatastream<T> {
 #[repr(C)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub struct LibrawOpaqueDatastream<'a> {
     inner: Box<dyn LibrawBufferedDatastream + 'a>,
 }
 
 impl<'a> LibrawOpaqueDatastream<'a> {
-    pub fn new(inner: impl LibrawBufferedDatastream + 'a) -> Self {
+    pub fn new(inner: impl LibrawBufferedDatastream + MaybeDebug + 'a) -> Self {
         Self {
             inner: Box::new(inner),
         }
@@ -384,6 +398,7 @@ pub unsafe extern "C" fn lod_seek(
 ) -> i32 {
     assert!(!this.is_null());
     let this = unsafe { &mut *this };
+    // this.inner.tell();
     LibrawDatastream::seek(&mut this.inner, offset, whence)
 }
 
@@ -434,5 +449,41 @@ pub unsafe extern "C" fn lod_scanf_one(
     fmt: *const libc::c_char,
     val: *mut libc::c_void,
 ) -> libc::c_int {
-    todo!();
+    assert!(!this.is_null());
+    use core::ffi::*;
+    let this = unsafe { &mut *this };
+    let fmt = unsafe { CStr::from_ptr(fmt) };
+    // let val = unsafe { &mut *(val as *mut u32) };
+    // let mut buf = [0u8; 4];
+    // todo!()
+    match fmt.to_bytes() {
+        b"%d" => {
+            let val = unsafe { &mut *(val as *mut i32) };
+            let mut buf = [0u8; 4];
+            if this.inner.read_exact(&mut buf).is_err() {
+                return -1;
+            }
+            *val = i32::from_ne_bytes(buf);
+            1
+        }
+        b"%f" => {
+            let val = unsafe { &mut *(val as *mut f32) };
+            let mut buf = [0u8; 4];
+            if this.inner.read_exact(&mut buf).is_err() {
+                return -1;
+            }
+            *val = f32::from_ne_bytes(buf);
+            1
+        }
+        b"%s" => unimplemented!("skipped for now"),
+        _ => return -1,
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn lod_drop(this: *mut LibrawOpaqueDatastream) {
+    assert!(!this.is_null());
+    let this = unsafe { this.read() };
+    panic!("dropping");
+    drop(this)
 }

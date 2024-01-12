@@ -18,6 +18,11 @@ impl<'reader> Processor<'reader> {
         unsafe { &self.inner.as_ref().idata }
     }
 
+    pub fn valid(&mut self) -> Result<(), LibrawError> {
+        let ret = unsafe { crate::io::bindings::libraw_valid_check(self.inner.as_mut()) };
+        LibrawError::check(ret)
+    }
+
     pub fn unpack(&mut self) -> Result<(), LibrawError> {
         let ret = unsafe { sys::libraw_unpack(self.inner.as_mut()) };
         LibrawError::check(ret)

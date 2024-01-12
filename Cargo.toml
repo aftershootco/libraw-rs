@@ -34,7 +34,9 @@ bindgen = ["libraw-sys/bindgen"]
 exif = ["dep:libc"]
 openmp = ["libraw-sys/openmp"]
 openmp_static = ["libraw-sys/openmp_static"]
-default = ["exif"]
+debug = []
+
+default = ["exif", "debug"]
 
 [build-dependencies]
 anyhow = "1.0.58"

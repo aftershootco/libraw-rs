@@ -31,7 +31,7 @@ impl Processor<'_> {
     }
 
     pub fn dcraw_ppm_tiff_writer(
-        self,
+        &mut self,
         path: impl AsRef<std::path::Path>,
     ) -> Result<(), LibrawError> {
         LibrawError::check(unsafe {

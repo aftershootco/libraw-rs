@@ -32,6 +32,8 @@ char *lod_gets(struct LibrawOpaqueDatastream *this_, char *buffer, int size);
 
 int lod_scanf_one(struct LibrawOpaqueDatastream *this_, const char *fmt, void *val);
 
+void lod_drop(struct LibrawOpaqueDatastream *this_);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif // __cplusplus
