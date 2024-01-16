@@ -254,8 +254,8 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
         out_dir.as_ref().join("lib").display()
     );
     println!("cargo:rustc-link-lib=static=raw_r");
-    #[cfg(feature = "jpeg")]
-    println!("cargo:rustc-link-lib=static=mozjpeg80");
+    // #[cfg(feature = "jpeg")]
+    // println!("cargo:rustc-link-lib=static=mozjpeg80");
     #[cfg(feature = "zlib")]
     println!("cargo:rustc-link-lib=static=z");
 
