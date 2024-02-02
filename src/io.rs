@@ -12,83 +12,6 @@ pub trait MaybeDebug {}
 #[cfg(not(feature = "debug"))]
 impl<T> MaybeDebug for T {}
 
-///  Input layer abstraction
-///
-///  class LibRaw_abstract_datastream - abstract RAW read interface
-///
-///  LibRaw reads RAW-data by calling (virtual) methods of C++ object derived from LibRaw_abstract_datastream. This C++ class does not implement any read, but defines interface to be called. Call to base class methods always results in error.
-///
-///  LibRaw_abstract_datastream class methods
-///
-///  Object verification
-///
-///  virtual int valid()
-///      Checks input datastream validity. Returns 1 on valid stream and 0 if datastream was created on non-valid input parameters (wrong filename for file stream and so on).
-///
-///  Stream read and positioning
-///
-///  This group of methods implements file object (FILE*) semantics.
-///
-///  - `virtual int read(void * ptr,size_t size, size_t nmemb)`
-///      Similar to fread(ptr,size,nmemb,file).
-///  - `virtual int seek(off_t o, int whence)`
-///      Similar to fseek(file,o,whence).
-///  - `virtual int tell(`
-///      Similar to ftell(file).
-///  - `virtual int get_char()`
-///      Similar to getc(file)/fgetc(file).
-///  - `virtual char* gets(char *s, int n)`
-///      Similar to fgets(s,n,file).
-///  - `virtual int eof()`
-///      Similar to feof(file).
-///  - `virtual int scanf_one(const char *fmt, void *val)`
-///      Simplified variant of fscanf(file,fmt,val): format string is always contains one argument to read. So, variable args call is not needed and only one pointer to data passed.
-///  - `virtual int jpeg_src(void * p);`
-///      Initializes read structures in j_decompress_ptr object passed as *p. This object is used by libjpeg for JPEG data reading from datastream.
-///
-///      Returns -1 on error and 0 on success.
-///  - `virtual void * make_jas_stream();`
-///      Creates LibJasper input stream (for JPEG2000 decoding).
-///
-///      returns NULL on error or data pointer on success.
-///
-///  Other methods
-///
-///  This group of methods includes several supplementary calls. These calls are used to temporary switch to another data stream (file and/or memory buffer).
-///
-///  virtual const char* fname()
-///      Returns name of opened file if datastream object knows it (for example, LibRaw_file_datastream used). Filename used in:
-///
-///          error notification callbacks;
-///          generation of filename of JPEG-file with metadata when needed (i.e. cameras with 'Diag RAW hack').
-///
-///  virtual int subfile_open(const char *fn)
-///      This call temporary switches input to file fn. Returns 0 on success and error code on error.
-///      The function used to read metadata from external JPEG file (on cameras with "Diag RAW hack").
-///      This call is not implemented for LibRaw_buffer_datastream, so external JPEG processing is not possible when buffer datastream used.
-///      This function should be implemented in real input class, base class call always return error.
-///      Working implementation sample can be found in LibRaw_file_datastream implementation in libraw/libraw_datastream.h file.
-///  virtual void subfile_close()
-///      This call switches input stream from temporary open file back to main data stream.
-///  virtual int tempbuffer_open(void *buf, size_t size)
-///      This call temporary switches input to LibRaw_buffer_datastream object, created from buf.
-///      This method is needed for Sony encrypted metadata parser.
-///
-///      This call implemented in base class (LibRaw_abstract_datastream), there is no need to reimplement in in derived classes.
-///      Possible activity of temporary datastream requires very accurate programming when implementing datastreams derived from base LibRaw_abstract_datastream. See below for more details.
-///  virtual void tempbuffer_close()
-///      This call switch input back from temporary datastream to main stream. This call implemented in base LibRaw_abstract_datastream class.
-///
-///  Derived input classes included in LibRaw
-///
-///  There is three "standard" input classes in LibRaw distribution:
-///
-///      LibRaw_file_datastream implements input from file (in filesystem).
-///      LibRaw_bigfile_datastream slower I/O, but files larger than 2Gb are supported.
-///      LibRaw_buffer_datastream implements input from memory buffer.
-///
-///  LibRaw C++ interface users can implement their own input classes and use them via LibRaw::open_datastream call. Requirements and implementation specifics are described below.
-///
 
 //
 // ```c++
@@ -240,7 +163,10 @@ impl<T: LibrawDatastream + BufRead + MaybeDebug> LibrawBufferedDatastream for T 
 
 use core::ops::{Deref, DerefMut};
 // pub trait Libraw
-use std::io::{BufRead, Read, Seek, Write};
+use std::{
+    io::{BufRead, Read, Seek, Write},
+    pin::Pin,
+};
 
 pub trait Eof: Seek {
     fn len(&mut self) -> ::std::io::Result<u64> {
@@ -277,7 +203,7 @@ impl<T: Seek> Eof for T {}
 /// Abstract Datastream
 ///
 /// Using the rust version of the abstract datastream
-#[repr(C)]
+#[repr(transparent)]
 pub struct AbstractDatastream<T: Read + Seek + Sized> {
     inner: T,
 }
@@ -353,7 +279,7 @@ fn read_until<R: BufRead + ?Sized>(
 }
 
 // impl<T: LibrawBufferedDatastream> AbstractDatastream<T> {
-#[repr(C)]
+#[repr(transparent)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct LibrawOpaqueDatastream<'a> {
     inner: Box<dyn LibrawBufferedDatastream + 'a>,
@@ -387,7 +313,7 @@ pub unsafe extern "C" fn lod_read(
 ) -> i32 {
     assert!(!this.is_null());
     let this = unsafe { &mut *this };
-    LibrawDatastream::read(&mut this.inner, buffer, sz, nmemb)
+    LibrawDatastream::read(&mut this.inner.as_mut(), buffer, sz, nmemb)
 }
 
 #[no_mangle]
@@ -398,8 +324,12 @@ pub unsafe extern "C" fn lod_seek(
 ) -> i32 {
     assert!(!this.is_null());
     let this = unsafe { &mut *this };
-    // this.inner.tell();
-    LibrawDatastream::seek(&mut this.inner, offset, whence)
+    let inner = core::ptr::addr_of!(this.inner);
+    let mut inner = core::ptr::read(inner);
+    dbg!(&inner);
+    let ret = LibrawDatastream::seek(&mut inner, offset, whence);
+    core::mem::forget(inner);
+    ret
 }
 
 #[no_mangle]

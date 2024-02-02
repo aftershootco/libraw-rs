@@ -22,11 +22,10 @@ extern crate libraw_sys as sys;
 use core::ptr::NonNull;
 use semver::Version;
 use std::ffi::CString;
-use std::mem::ManuallyDrop;
 use std::path::Path;
 
 /// Returns the version of libraw the bindings were generated against
-pub const fn bindings() -> Version {
+pub const fn version() -> Version {
     Version {
         major: sys::LIBRAW_MAJOR_VERSION as u64,
         minor: sys::LIBRAW_MINOR_VERSION as u64,
@@ -63,9 +62,8 @@ impl EmptyProcessor {
             io::bindings::libraw_open_io(self.inner.as_mut(), core::ptr::addr_of_mut!(io))
         };
         LibrawError::check(ret)?;
-        let mut p = unsafe { Processor::new(self.inner) };
-        let _ = ManuallyDrop::new(io);
-        // p.unpack()?;
+        let p = unsafe { Processor::new(self.inner) };
+        core::mem::forget(io);
         Ok(p)
     }
 }

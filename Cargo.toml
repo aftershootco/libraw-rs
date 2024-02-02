@@ -70,4 +70,6 @@ libraw_r = { path = ".", version = "1.0.0-rc.1", registry = "ktra" }
 # rpath = false
 
 # [profile.bench]
-# debug = true
+[profile.release]
+panic = "abort"
+debug = true
