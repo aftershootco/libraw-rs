@@ -79,9 +79,7 @@ impl Processor {
         unsafe { &self.inner.as_ref().thumbs_list }
     }
     pub fn unpack_thumb_ex(&mut self, index: libc::c_int) -> Result<(), LibrawError> {
-        LibrawError::check(unsafe {
-            sys::libraw_unpack_thumb_ex(self.inner.as_ptr(), index)
-        })?;
+        LibrawError::check(unsafe { sys::libraw_unpack_thumb_ex(self.inner.as_ptr(), index) })?;
         Ok(())
     }
 

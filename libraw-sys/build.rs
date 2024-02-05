@@ -255,7 +255,9 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
     );
     println!("cargo:rustc-link-lib=static=raw_r");
     #[cfg(feature = "jpeg")]
-    println!("cargo:rustc-link-lib=static=jpeg");
+    if let Ok(name) = std::env::var("DEP_JPEG_NAME") {
+        println!("cargo:rustc-link-lib=static={name}");
+    }
     #[cfg(feature = "zlib")]
     println!("cargo:rustc-link-lib=static=z");
 
