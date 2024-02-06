@@ -264,18 +264,30 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
 
 #[cfg(feature = "bindgen")]
 fn bindings(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> {
-    let bindings = bindgen::Builder::default()
-        .header(
-            libraw_dir
-                .as_ref()
-                .join("libraw")
-                .join("libraw.h")
-                .to_string_lossy(),
-        )
+    let bindings = bindgen::Builder::default().header(
+        libraw_dir
+            .as_ref()
+            .join("libraw")
+            .join("libraw.h")
+            .to_string_lossy(),
+    );
+    let triple = std::env::var("TARGET")?;
+    let bindings = if triple.ends_with("emscripten") {
+        // Check emcc
+        let out = std::process::Command::new("emcc")
+            .arg("--cflags")
+            .output()?;
+        let cflags = String::from_utf8(out.stdout)?;
+        bindings.clang_args(cflags.split_whitespace())
+    } else {
+        bindings
+    };
+
+    let bindings = bindings
         .use_core()
         .ctypes_prefix("libc")
         .generate_comments(true)
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         // API improvements
         .derive_eq(true)
         .size_t_is_usize(true)
