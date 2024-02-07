@@ -59,11 +59,25 @@ pub fn riio(out_dir: impl AsRef<Path>) -> anyhow::Result<()> {
         .map(|p| format!("-I{}", p.to_str().unwrap()))
         .inspect(|p| println!("cargo:warning=clang_args: {}", p));
 
-    bindgen::Builder::default()
+    let bindings = bindgen::Builder::default()
         .header("io/io.h")
         .allowlist_file("io/io.h")
         .blocklist_type(".*")
-        .clang_args(clang_args)
+        .clang_args(clang_args);
+
+    let triple = std::env::var("TARGET")?;
+    let bindings = if triple.ends_with("emscripten") {
+        // Check emcc
+        let out = std::process::Command::new("emcc")
+            .arg("--cflags")
+            .output()?;
+        let cflags = String::from_utf8(out.stdout)?;
+        bindings.clang_args(cflags.split_whitespace())
+    } else {
+        bindings
+    };
+
+    bindings
         .generate()
         .expect("failed to generate bindings")
         .write_to_file(out_dir.as_ref().join("io.rs"))

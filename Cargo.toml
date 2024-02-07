@@ -57,19 +57,6 @@ members = [
 libraw-sys = { path = "libraw-sys", version = "1.0.0-rc.1", registry = "ktra" }
 libraw_r = { path = ".", version = "1.0.0-rc.1", registry = "ktra" }
 
-
-# [profile.dev]
-# opt-level = 0
-# debug = true
-# debug-assertions = true
-# overflow-checks = true
-# lto = false
-# panic = 'unwind'
-# incremental = true
-# codegen-units = 256
-# rpath = false
-
-# [profile.bench]
 [profile.release]
 panic = "abort"
 debug = true

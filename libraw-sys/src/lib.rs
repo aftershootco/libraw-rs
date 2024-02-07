@@ -8,8 +8,6 @@
 #[cfg(feature = "openmp")]
 extern crate openmp_sys;
 
-pub use self::bindings::*;
-
 #[cfg(all(windows, target_env = "msvc", not(feature = "bindgen")))]
 #[path = "windows.rs"]
 mod bindings;
@@ -26,5 +24,13 @@ mod bindings;
 #[path = "linux.rs"]
 mod bindings;
 
+#[cfg(all(target_family = "wasm", not(feature = "bindgen")))]
+mod bindings {
+    compile_error!("WebAssembly is not supported without bindgen");
+    compile_error!("Please enable the `bindgen` feature to generate the bindings");
+}
+
 #[cfg(feature = "bindgen")]
 mod bindings;
+
+pub use self::bindings::*;

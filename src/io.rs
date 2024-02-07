@@ -12,7 +12,6 @@ pub trait MaybeDebug {}
 #[cfg(not(feature = "debug"))]
 impl<T> MaybeDebug for T {}
 
-
 //
 // ```c++
 // class DllDef LibRaw_abstract_datastream
@@ -71,13 +70,13 @@ pub trait LibrawDatastream: Read + Seek + Eof + MaybeDebug {
     /// # Safety
     ///
     ///
-    unsafe fn seek(&mut self, offset: i64, whence: u32) -> i32 {
+    unsafe fn seek(&mut self, offset: i64, whence: i32) -> i32 {
         match whence {
-            sys::SEEK_SET => {
+            libc::SEEK_SET => {
                 std::io::Seek::seek(self, std::io::SeekFrom::Start(offset as u64)).ok()
             }
-            sys::SEEK_CUR => std::io::Seek::seek(self, std::io::SeekFrom::Current(offset)).ok(),
-            sys::SEEK_END => std::io::Seek::seek(self, std::io::SeekFrom::End(offset)).ok(),
+            libc::SEEK_CUR => std::io::Seek::seek(self, std::io::SeekFrom::Current(offset)).ok(),
+            libc::SEEK_END => std::io::Seek::seek(self, std::io::SeekFrom::End(offset)).ok(),
             _ => return 0,
         }
         .expect("Failed to seek");
@@ -320,7 +319,7 @@ pub unsafe extern "C" fn lod_read(
 pub unsafe extern "C" fn lod_seek(
     this: *mut LibrawOpaqueDatastream,
     offset: i64,
-    whence: u32,
+    whence: i32,
 ) -> i32 {
     assert!(!this.is_null());
     let this = unsafe { &mut *this };

@@ -18,7 +18,7 @@ int32_t lod_read(struct LibrawOpaqueDatastream *this_,
                  uintptr_t sz,
                  uintptr_t nmemb);
 
-int32_t lod_seek(struct LibrawOpaqueDatastream *this_, int64_t offset, uint32_t whence);
+int32_t lod_seek(struct LibrawOpaqueDatastream *this_, int64_t offset, int32_t whence);
 
 int64_t lod_tell(struct LibrawOpaqueDatastream *this_);
 
