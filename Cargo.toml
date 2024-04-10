@@ -1,4 +1,6 @@
 [workspace]
+package.name = "libraw"
+package.version = "1.0.0-rc.2"
 resolver = "2"
 members = [
     "libraw-rs",
