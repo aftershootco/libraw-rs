@@ -90,12 +90,13 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
         "src/decoders/generic.cpp",
         "src/decoders/kodak_decoders.cpp",
         "src/decoders/load_mfbacks.cpp",
+        "src/decoders/olympus14.cpp",
         "src/decoders/pana8.cpp",
-        "src/decoders/sonycc.cpp",
-        "src/decompressors/losslessjpeg.cpp",
         "src/decoders/smal.cpp",
+        "src/decoders/sonycc.cpp",
         "src/decoders/unpack.cpp",
         "src/decoders/unpack_thumb.cpp",
+        "src/decompressors/losslessjpeg.cpp",
         "src/demosaic/aahd_demosaic.cpp",
         "src/demosaic/ahd_demosaic.cpp",
         "src/demosaic/dcb_demosaic.cpp",
@@ -104,6 +105,8 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
         "src/demosaic/xtrans_demosaic.cpp",
         "src/integration/dngsdk_glue.cpp",
         "src/integration/rawspeed_glue.cpp",
+        "src/libraw_c_api.cpp",
+        "src/libraw_datastream.cpp",
         "src/metadata/adobepano.cpp",
         "src/metadata/canon.cpp",
         "src/metadata/ciff.cpp",
@@ -132,11 +135,9 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
         "src/postprocessing/dcraw_process.cpp",
         "src/postprocessing/mem_image.cpp",
         "src/postprocessing/postprocessing_aux.cpp",
-        //"src/postprocessing/postprocessing_ph.cpp",
         "src/postprocessing/postprocessing_utils.cpp",
         "src/postprocessing/postprocessing_utils_dcrdefs.cpp",
         "src/preprocessing/ext_preprocess.cpp",
-        //"src/preprocessing/preprocessing_ph.cpp"
         "src/preprocessing/raw2image.cpp",
         "src/preprocessing/subtract_black.cpp",
         "src/tables/cameralist.cpp",
@@ -155,12 +156,12 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
         "src/write/apply_profile.cpp",
         "src/write/file_write.cpp",
         "src/write/tiff_writer.cpp",
-        //"src/write/write_ph.cpp"
         "src/x3f/x3f_parse_process.cpp",
         "src/x3f/x3f_utils_patched.cpp",
-        "src/libraw_c_api.cpp",
         //"src/libraw_cxx.cpp"
-        "src/libraw_datastream.cpp",
+        //"src/postprocessing/postprocessing_ph.cpp",
+        //"src/preprocessing/preprocessing_ph.cpp"
+        //"src/write/write_ph.cpp"
     ];
 
     let sources = sources
