@@ -1,0 +1,34 @@
+{
+  "version": "1.0.0",
+  "name": "libraw",
+  "dependencies": [
+    "dng-sdk",
+    {
+      "name": "rawspeed",
+      "platform": "!emscripten"
+    },
+    "zlib",
+    "libpng",
+    {
+      "name": "libjpeg-turbo",
+      "default-features": false,
+      "features": ["jpeg8"]
+    },
+    "pugixml"
+  ],
+  "vcpkg-configuration": {
+    "default-registry": {
+      "kind": "git",
+      "baseline": "7eb700c9688daed6d8bdcdc571ebe3eedea6a774",
+      "repository": "https://github.com/microsoft/vcpkg"
+    },
+    "registries": [
+      {
+        "kind": "git",
+        "repository": "https://github.com/aftershootco/vcpkg-as-overlay",
+        "baseline": "07aea0cf837d3ba6e079bbb81ab1d6db722aae4d",
+        "packages": ["dng-sdk", "libjxl", "rawspeed", "xmp-toolkit"]
+      }
+    ]
+  }
+}

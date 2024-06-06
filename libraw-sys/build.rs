@@ -1,6 +1,156 @@
-use std::path::{Path, PathBuf};
+use std::ffi::OsStr;
+use std::io::{BufRead, BufReader};
+use std::path::{Component, Path, PathBuf};
+use std::process::{Command, Stdio};
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+fn guess_vcpkg_dir(base: &Path) -> Option<PathBuf> {
+    if let Some(index) = base
+        .components()
+        .position(|c| c == Component::Normal(OsStr::new("target")))
+    {
+        let guess = base
+            .components()
+            .take(index + 1)
+            .collect::<PathBuf>()
+            .join("vcpkg");
+
+        if guess.read_dir().ok()?.filter_map(|p| p.ok()).any(|p| {
+            p.path()
+                .file_name()
+                .map(|f| f == ".vcpkg-root")
+                .unwrap_or_default()
+        }) {
+            Some(guess)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+fn get_vcpkg_triplet(target: &str) -> &'static str {
+    match target {
+        "x86_64-apple-darwin" => "x64-osx",
+        "aarch64-apple-darwin" => "arm64-osx",
+        "x86_64-unknown-linux-gnu" => "x64-linux",
+        "x86_64-pc-windows-msvc" => "x64-windows-static",
+        "x86_64-pc-windows-gnu" => "x64-mingw-static",
+        "wasm32-unknown-emscripten" => "wasm32-emscripten",
+        &_ => panic!("Unsupported target {}", target)
+    }
+}
+
+fn get_path_from_env(key: &str) -> Option<PathBuf> {
+    std::env::var(key).ok().and_then(|p| {
+        shellexpand::full(&p)
+            .ok()
+            .and_then(|p| dunce::canonicalize(p.to_string()).ok())
+    })
+}
+
+fn vcpkg_install_command(vcpkg_root: &PathBuf, vcpkg_triplet: &str, manifest_dir: &str) -> Command {
+    let mut x = vcpkg_root.clone();
+    if cfg!(windows) {
+        x.push("vcpkg.exe");
+    } else {
+        x.push("vcpkg")
+    }
+    let mut command = Command::new(x);
+    command.current_dir(&manifest_dir);
+    command.arg("--triplet");
+    command.arg(vcpkg_triplet);
+    command.arg("install");
+    command
+}
+
+fn parse_build_line(line: &str) -> Option<(String, String, u64, u64)> {
+    let line = Some(line)
+        .filter(|line| line.starts_with("Starting package "))
+        .map(|line| line.trim_start_matches("Starting package ").to_string())?;
+
+    let progress_and_pkg_trp = line.splitn(2, ':').collect::<Vec<_>>();
+    if progress_and_pkg_trp.len() != 2 {
+        return None;
+    }
+
+    let pkg_with_triplet = progress_and_pkg_trp[1].trim();
+
+    let (pkg, triplet) = match pkg_with_triplet
+        .rsplitn(2, ':')
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [t, p] => (p.to_string(), t.to_string()),
+        _ => return None,
+    };
+
+    let (cnt, tot) = match &progress_and_pkg_trp[0]
+        .splitn(2, '/')
+        .filter_map(|s| s.parse::<u64>().ok())
+        .collect::<Vec<_>>()
+        .as_slice()
+    {
+        [cnt, tot] => (*cnt, *tot),
+        _ => (0, 0),
+    };
+
+    Some((pkg, triplet, cnt, tot))
+}
+
+fn vcpkg_install(out_dir: &Path) -> Result<String> {
+    let toolchain_dir = get_path_from_env("VCPKG_ROOT").unwrap_or_else(|| {
+        guess_vcpkg_dir(out_dir).expect("Could not guess VCPKG_ROOT, please set it manually.")
+    });
+
+    let target = std::env::var("TARGET").unwrap();
+    let triplet = get_vcpkg_triplet(&target);
+    let mut command = vcpkg_install_command(&toolchain_dir, triplet, env!("CARGO_MANIFEST_DIR"));
+    command.arg(&format!("--x-install-root={}/vcpkg_installed", out_dir.display()));
+    command.stdout(Stdio::piped());
+
+    let mut output = command.spawn()?;
+
+    let reader = BufReader::new(output.stdout.take().expect("could not get stdout"));
+
+    for line in reader.lines() {
+        if let Some((pkg, triplet, _num, _tot)) = parse_build_line(&line.unwrap()) {
+            println!("Compiling {}", &format!("{} (triplet {})", pkg, triplet))
+        }
+    }
+    let output = output.wait_with_output()?;
+
+    if !output.status.success() {
+        println!("-- stdout --\n{}", String::from_utf8_lossy(&output.stdout));
+        println!("-- stderr --\n{}", String::from_utf8_lossy(&output.stderr));
+        return Err("failed vcpkg install".into());
+    }
+
+    println!("cargo:rustc-link-search=native={}/vcpkg_installed/{}/lib", out_dir.display(), triplet);
+
+    Ok(format!("{}/vcpkg_installed/{}/include", out_dir.display(), triplet))
+}
+
+fn apply_patch(libraw_dir: impl AsRef<Path>) -> Result<()> {
+    let mut command = Command::new("git");
+    command.current_dir(&libraw_dir);
+    command.arg("apply");
+    command.arg(format!("{}/Add_IntoPix_decoder_and_other_fixes.patch", env!("CARGO_MANIFEST_DIR")));
+    command.arg("--ignore-whitespace");
+
+    if let Ok(output) = command.output() {
+        println!(
+            "--- stdout ---\n{}\n\n--- stderr ---\n{}\n\n",
+            String::from_utf8(output.stdout).unwrap(),
+            String::from_utf8(output.stderr).unwrap()
+        );
+        Ok(())
+    } else {
+        Err("git apply failed".into())
+    }
+}
 
 fn main() -> Result<()> {
     println!("cargo:rerun-if-changed=build.rs");
@@ -33,7 +183,11 @@ fn main() -> Result<()> {
         .to_string_lossy()
     );
 
-    build(out_dir, &libraw_dir)?;
+    let vcpkg_include_dir = vcpkg_install(out_dir)?;
+
+    apply_patch(&libraw_dir)?;
+
+    build(out_dir, &libraw_dir, &vcpkg_include_dir)?;
 
     #[cfg(all(feature = "bindgen"))]
     bindings(out_dir, &libraw_dir)?;
@@ -43,30 +197,19 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> {
+fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>, vcpkg_include_dir: &str) -> Result<()> {
     std::env::set_current_dir(out_dir.as_ref()).expect("Unable to set current dir");
 
     let mut libraw = cc::Build::new();
     libraw.cpp(true);
     libraw.include(libraw_dir.as_ref());
 
-    #[cfg(feature = "zlib")]
-    if let Ok(path) = std::env::var("DEP_Z_INCLUDE") {
-        libraw.include(path);
-    }
-
     // Fix builds on msys2
-    #[cfg(windows)]
-    libraw.define("HAVE_BOOLEAN", None);
     #[cfg(windows)]
     libraw.define("LIBRAW_WIN32_DLLDEFS", None);
     #[cfg(windows)]
     libraw.define("LIBRAW_BUILDLIB", None);
 
-    #[cfg(feature = "jpeg")]
-    if let Ok(path) = std::env::var("DEP_JPEG_INCLUDE") {
-        libraw.includes(std::env::split_paths(&path));
-    }
     // libraw.files(sources);
     // if Path::new("libraw/src/decoders/pana8.cpp").exists() {
     //     libraw.file("libraw/src/decoders/pana8.cpp");
@@ -78,7 +221,7 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
     //     libraw.file("libraw/src/decompressors/losslessjpeg.cpp");
     // }
 
-    let sources = [
+    let mut sources = vec![
         "src/decoders/canon_600.cpp",
         "src/decoders/crx.cpp",
         "src/decoders/decoders_dcraw.cpp",
@@ -164,6 +307,13 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
         //"src/write/write_ph.cpp"
     ];
 
+    // Don't set if emscripten as rawspeed doesn't build on wasm yet
+    #[cfg(any(all(not(target_arch = "wasm32"), not(target_os = "unknown"), feature = "openmp"), target_os = "windows"))]
+    {
+        sources.push("RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp");
+        sources.push("../src/rawspeed_cameras.cpp");
+    }
+
     let sources = sources
         .iter()
         .filter_map(|s| dunce::canonicalize(libraw_dir.as_ref().join(s)).ok())
@@ -178,6 +328,23 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
     }
 
     libraw.files(sources);
+
+    libraw.include(vcpkg_include_dir);
+    libraw.include(format!("{}/dng_sdk", vcpkg_include_dir));
+    libraw.include(format!("{}/rawspeed", vcpkg_include_dir));
+    libraw.include(format!("{}/rawspeed/external", vcpkg_include_dir));
+    libraw.include(format!("{}/RawSpeed3/rawspeed3_c_api", libraw_dir.as_ref().display()));
+
+    #[cfg(unix)]
+    {
+        libraw.flag_if_supported("-std=c++20");
+    }
+    #[cfg(windows)]
+    {
+        libraw.flag_if_supported("/std:c++20");
+        libraw.flag_if_supported("/Zc:preprocessor");
+        libraw.flag_if_supported("/EHsc");
+    }
 
     libraw.warnings(false);
     libraw.extra_warnings(false);
@@ -227,20 +394,21 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
     libraw.flag_if_supported("-pthread");
 
     // Add libraries
-    #[cfg(feature = "jpeg")]
+    libraw.flag("-DUSE_DNGSDK");
+
+    // Don't set if emscripten as rawspeed doesn't build on wasm yet
+    #[cfg(any(all(not(target_arch = "wasm32"), not(target_os = "unknown"), feature = "openmp"), target_os = "windows"))]
+    {
+        libraw.flag("-DRAWSPEED_BUILDLIB");
+        libraw.flag("-DUSE_RAWSPEED3");
+    }
+
+    libraw.flag("-DUSE_X3FTOOLS");
+
     libraw.flag("-DUSE_JPEG");
+    libraw.flag("-DUSE_JPEG8");
 
-    #[cfg(feature = "zlib")]
     libraw.flag("-DUSE_ZLIB");
-
-    // #[cfg(feature = "jasper")]
-    // libraw.flag("-DUSE_JASPER");
-
-    #[cfg(target_os = "linux")]
-    libraw.cpp_link_stdlib("stdc++");
-
-    #[cfg(target_os = "macos")]
-    libraw.cpp_link_stdlib("c++");
 
     #[cfg(unix)]
     libraw.static_flag(true);
@@ -255,12 +423,56 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
         out_dir.as_ref().join("lib").display()
     );
     println!("cargo:rustc-link-lib=static=raw_r");
-    #[cfg(feature = "jpeg")]
-    if let Ok(name) = std::env::var("DEP_JPEG_NAME") {
-        println!("cargo:rustc-link-lib=static={name}");
+
+    #[cfg(any(all(not(target_arch = "wasm32"), not(target_os = "unknown"), feature = "openmp"), target_os = "windows"))]
+    println!("cargo:rustc-link-lib=static=rawspeed");
+    println!("cargo:rustc-link-lib=static=dng");
+    println!("cargo:rustc-link-lib=static=jxl_threads");
+    println!("cargo:rustc-link-lib=static=jxl");
+    println!("cargo:rustc-link-lib=static=jxl_cms");
+    println!("cargo:rustc-link-lib=static=lcms2");
+    println!("cargo:rustc-link-lib=static=hwy");
+    println!("cargo:rustc-link-lib=static=brotlidec");
+    println!("cargo:rustc-link-lib=static=brotlienc");
+    println!("cargo:rustc-link-lib=static=brotlicommon");
+    println!("cargo:rustc-link-lib=static=jpeg");
+    println!("cargo:rustc-link-lib=static=pugixml");
+    #[cfg(target_os = "macos")]
+    {
+        println!("cargo:rustc-link-lib=static=XMP");
+        println!("cargo:rustc-link-lib=framework=CoreFoundation");
+        println!("cargo:rustc-link-lib=framework=CoreServices");
+        println!("cargo:rustc-link-lib=static=expat");
+        println!("cargo:rustc-link-lib=static=png16");
+        println!("cargo:rustc-link-lib=static=z");
     }
-    #[cfg(feature = "zlib")]
-    println!("cargo:rustc-link-lib=static=z");
+    #[cfg(target_os = "linux")]
+    {
+        println!("cargo:rustc-link-lib=static=XMP");
+        println!("cargo:rustc-link-lib=static=expat");
+        println!("cargo:rustc-link-lib=static=png16");
+        println!("cargo:rustc-link-lib=static=z");
+    }
+    #[cfg(target_os = "windows")]
+    {
+        println!("cargo:rustc-link-lib=static=XMP");
+        println!("cargo:rustc-link-lib=static=libexpatMT");
+        println!("cargo:rustc-link-lib=static=libpng16");
+        println!("cargo:rustc-link-lib=static=zlib");
+    }
+
+    // Needed for libgomp linking on Linux, otherwise undefined references are thrown
+    #[cfg(target_os = "linux")]
+    if let Some(link) = std::env::var_os("DEP_OPENMP_CARGO_LINK_INSTRUCTIONS") {
+        for i in std::env::split_paths(&link) {
+            println!("cargo:{}", i.display());
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    println!("cargo:rustc-link-lib=c++");
+    #[cfg(target_os = "linux")]
+    println!("cargo:rustc-link-lib=stdc++");
 
     Ok(())
 }

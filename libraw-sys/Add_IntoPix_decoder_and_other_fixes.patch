@@ -1,0 +1,295 @@
+Subject: [PATCH] Add IntoPix decoder and other fixes
+---
+Index: libraw/libraw_datastream.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/libraw/libraw_datastream.h b/libraw/libraw_datastream.h
+--- a/libraw/libraw_datastream.h	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
++++ b/libraw/libraw_datastream.h	(date 1717163037267)
+@@ -60,7 +60,9 @@
+ #define qMacOS 0
+ #elif defined(__APPLE__)
+ #define qWinOS 0
++#ifndef qMacOS
+ #define qMacOS 1
++#endif
+ #else
+ /* define OS types for DNG here */
+ #endif
+Index: src/integration/dngsdk_glue.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/integration/dngsdk_glue.cpp b/src/integration/dngsdk_glue.cpp
+--- a/src/integration/dngsdk_glue.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
++++ b/src/integration/dngsdk_glue.cpp	(date 1717163037278)
+@@ -111,11 +111,9 @@
+ 
+   if (libraw_internal_data.unpacker_data.tiff_compress == 52546) // regardless of flags or use_dngsdk value!
+   {
+-#ifdef qDNGSupportJXL
+ 	  if (dngVersion_Current >= dngVersion_1_7_0_0)
+ 		  return 1;
+ 	  else
+-#endif
+ 		  return 0; // Old DNG SDK
+   }
+ 
+Index: RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp b/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp
+--- a/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
++++ b/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp	(date 1717163037272)
+@@ -1,7 +1,7 @@
+ #include "rawspeed3_capi.h"
+ #include "RawSpeed-API.h"
+ #define HAVE_PUGIXML
+-#include <../pugixml/pugixml.hpp> // for xml_document, xml_pars...
++#include <pugixml.hpp> // for xml_document, xml_pars...
+ 
+ extern const char* _rawspeed3_data_xml;
+ 
+Index: src/decoders/dng.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/decoders/dng.cpp b/src/decoders/dng.cpp
+--- a/src/decoders/dng.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
++++ b/src/decoders/dng.cpp	(date 1717163037283)
+@@ -189,11 +189,10 @@
+     throw LIBRAW_EXCEPTION_IO_CORRUPT;
+   struct jpeg_decompress_struct cinfo;
+   JSAMPARRAY buf;
+-  JSAMPLE(*pixel)[3];
+   unsigned sorder = order, ntags, opcode, deg, i, j, c;
+   unsigned trow = 0, tcol = 0, row, col;
+   INT64 save = data_offset - 4;
+-  ushort cur[3][256];
++  ushort cur[4][256];
+   double coeff[9], tot;
+ 
+   if (meta_offset)
+@@ -212,7 +211,7 @@
+         continue;
+       }
+       fseek(ifp, 20, SEEK_CUR);
+-      if ((c = get4()) > 2)
++      if ((c = get4()) > 3)
+         break;
+       fseek(ifp, 12, SEEK_CUR);
+       if ((deg = get4()) > 8)
+@@ -253,7 +252,7 @@
+     jpeg_read_header(&cinfo, TRUE);
+     jpeg_start_decompress(&cinfo);
+     buf = (*cinfo.mem->alloc_sarray)((j_common_ptr)&cinfo, JPOOL_IMAGE,
+-                                     cinfo.output_width * 3, 1);
++                                     cinfo.output_width * colors, 1);
+     try
+     {
+       while (cinfo.output_scanline < cinfo.output_height &&
+@@ -261,10 +260,9 @@
+       {
+         checkCancel();
+         jpeg_read_scanlines(&cinfo, buf, 1);
+-        pixel = (JSAMPLE(*)[3])buf[0];
+         for (col = 0; col < cinfo.output_width && tcol + col < width; col++)
+         {
+-          FORC3 image[row * width + tcol + col][c] = cur[c][pixel[col][c]];
++          FORC(colors) image[row * width + tcol + col][c] = cur[c][buf[0][col * colors + c]];
+         }
+       }
+     }
+Index: src/decoders/decoders_libraw_dcrdefs.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/decoders/decoders_libraw_dcrdefs.cpp b/src/decoders/decoders_libraw_dcrdefs.cpp
+--- a/src/decoders/decoders_libraw_dcrdefs.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
++++ b/src/decoders/decoders_libraw_dcrdefs.cpp	(date 1717668351071)
+@@ -112,10 +112,142 @@
+     ljpeg_end(&jh);
+   }
+ }
++#if defined(USE_INTOPIX_CPU_CODEC)
++#pragma push_macro("height")
++#pragma push_macro("width")
++#pragma push_macro("data_size")
++#pragma push_macro("data_offset")
++#pragma push_macro("getc")
++#undef height
++#undef width
++#undef data_size
++#undef data_offset
++#undef getc
++
++#include <IpxCpuCodec/ctx_options.h>
++#include <IpxCpuCodec/image_geometry.h>
++#include <IpxCpuCodec/image_format_cfg.h>
++#include <IpxCpuCodec/decode.h>
++#endif
+ 
+ void LibRaw::nikon_he_load_raw_placeholder()
+ {
++#if defined(USE_INTOPIX_CPU_CODEC)
++	char msg[4096];
++	const auto license_key = "AgAAAAIAgHkBAAB5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE5pa29uAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAF4hAABeIQAA/v////3///+DTsv+/////46SgbpMfRBF0xZ0H4twF0+RhbybmP3NcTY53f323J3Cm3OQQEttLd1hN/BmnXaaZWb1o1Ax9sqmmr7xxrk2m+V76hutqgnaYKTIGXkrQf5u3s/n4kz8CHbWMhoGx26gNS3qnkkL7EJjxalQielTJiYPfTFnO3sxDrtOCgoClMUc\n";
++
++	// Init the context options
++	ipxcpucodec_ctx_options_t *ctx_options = ipxcpucodec_init_ctx_options();
++	if (!ctx_options) {
++		fprintf(stderr, "[!] Could not initialize the context options.\n");
++		throw;
++	}
++	int rv = ipxcpucodec_set_license(ctx_options, (uint8_t *) license_key);
++	rv |= ipxcpucodec_set_thread_count(ctx_options, 8);
++	if (rv) {
++		fprintf(stderr, "[!] Error while setting context options.\n");
++		throw;
++	}
++
++	// Init the decoder
++	ipxcpucodec_decoder_t *decoder = ipxcpucodec_init_decoder(ctx_options);
++	if (!decoder) {
++		fprintf(stderr, "[!] Could not initialize the decoder.\n");
++		throw;
++	}
++
++	// Init image geometry structure
++	ipxcpucodec_image_geometry_t *image_geometry = ipxcpucodec_init_image_geometry();
++	if (image_geometry == nullptr) {
++		fprintf(stderr, "[!] Could not initialize the image geometry.\n");
++		throw;
++	}
++
++	// Init image format configuration
++	ipxcpucodec_image_format_cfg_t *image_format_cfg = ipxcpucodec_init_image_format_cfg();
++	if (!image_format_cfg) {
++		fprintf(stderr, "[!] Could not initialize the image format configuration.\n");
++		throw;
++	}
++	rv = ipxcpucodec_set_format(image_format_cfg, IPXCPUCODEC_FORMAT_MONO16b);
++	if (rv) {
++		fprintf(stderr, "[!] Error while setting format options.\n");
++		throw;
++	}
++
++	// Init decoding options
++	ipxcpucodec_decode_options_t *decode_options = ipxcpucodec_init_decode_options();
++	if (!decode_options) {
++		fprintf(stderr, "[!] Could not initialize the decoding options.\n");
++		throw;
++	}
++	rv |= ipxcpucodec_dec_set_proxy(decode_options, 0, 0);
++	if (rv) {
++		fprintf(stderr, "[!] Error while setting decoding options.\n");
++		throw;
++	}
++
++	// Find size of the input buffer
++	const int raw_data_size = libraw_internal_data.unpacker_data.data_size;
++
++	// Allocate memory for input bitstream buffer
++	const auto input_buffer = new unsigned char[raw_data_size];
++
++	// Read raw input data into input buffer
++	ifp->seek(libraw_internal_data.unpacker_data.data_offset, SEEK_SET);
++	ifp->read(input_buffer, 1, raw_data_size);
++
++	char err_msg[2048];
++    // Probe input image: obtain image size (input)
++    rv = ipxcpucodec_dec_probe2(decoder, raw_data_size, input_buffer, image_geometry);
++    if (rv != 0) {
++        ipxcpucodec_ret_code_to_str(static_cast<ipxcpucodec_ret_code_t>(rv), err_msg);
++        fprintf(stderr, "%s\n", err_msg);
++    	throw;
++    }
++    // Validate output configuration and obtain image size (output)
++    rv = ipxcpucodec_dec_validate_output_config(decoder, image_format_cfg, decode_options, image_geometry, image_geometry);
++    if (rv != 0) {
++        ipxcpucodec_ret_code_to_str(static_cast<ipxcpucodec_ret_code_t>(rv), err_msg);
++        fprintf(stderr, "%s\n", err_msg);
++    	throw;
++    }
++
++	const unsigned int output_buffer_size = ipxcpucodec_get_uncompressed_buffer_size(image_geometry, image_format_cfg);
++	const auto output_buffer = operator new[](output_buffer_size, std::align_val_t(64)); // align on 64 bytes to get extra performance
++
++    // needed to set padding bytes to 0x00 (padding bytes are not set by the IpxCpuCodec library)
++    memset(output_buffer, 0x00, output_buffer_size);
++
++    // decode the frame
++    rv = ipxcpucodec_decode(decoder, decode_options, image_format_cfg,
++                            raw_data_size, input_buffer, output_buffer_size, output_buffer, nullptr, nullptr);
++    if (rv) {
++        ipxcpucodec_ret_code_to_str(static_cast<ipxcpucodec_ret_code_t>(rv), err_msg);
++        fprintf(stderr, "%s\n", err_msg);
++        throw;
++    }
++
++    // Save output image to file
++	memcpy(raw_image, output_buffer, output_buffer_size);
++
++	// Release structures
++	ipxcpucodec_release_ctx_options(ctx_options);
++	ipxcpucodec_release_decoder(decoder);
++	ipxcpucodec_release_image_geometry(image_geometry);
++	ipxcpucodec_release_image_format_cfg(image_format_cfg);
++	ipxcpucodec_release_decode_options(decode_options);
++	delete[] input_buffer;
++	operator delete[](output_buffer, std::align_val_t(64));
++
++#pragma pop_macro("getc")
++#pragma pop_macro("data_offset")
++#pragma pop_macro("data_size")
++#pragma pop_macro("width")
++#pragma pop_macro("height")
++#else
+     throw LIBRAW_EXCEPTION_UNSUPPORTED_FORMAT;
++#endif
+ }
+ 
+ void LibRaw::nikon_coolscan_load_raw()
+Index: src/utils/decoder_info.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/utils/decoder_info.cpp b/src/utils/decoder_info.cpp
+--- a/src/utils/decoder_info.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
++++ b/src/utils/decoder_info.cpp	(date 1717659352621)
+@@ -120,7 +120,9 @@
+   else if (load_raw == &LibRaw::nikon_he_load_raw_placeholder)
+   {
+     d_info->decoder_name = "nikon_he_load_raw_placeholder()";
++#if !defined(USE_INTOPIX_CPU_CODEC)
+     d_info->decoder_flags = LIBRAW_DECODER_UNSUPPORTED_FORMAT;
++#endif
+   }
+   else if (load_raw == &LibRaw::nikon_load_sraw)
+   {
+Index: src/metadata/cr3_parser.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/metadata/cr3_parser.cpp b/src/metadata/cr3_parser.cpp
+--- a/src/metadata/cr3_parser.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
++++ b/src/metadata/cr3_parser.cpp	(date 1717425689247)
+@@ -499,7 +499,8 @@
+     {
+ 		if (nesting == 0)
+ 		{
+-			if(!memcmp(thdr,"II*\0",4) || !memcmp(thdr,"MM*\0",4))
++		  if(!memcmp(thdr,"II*\0",4) || !memcmp(thdr,"MM*\0",4) ||
++                ( !memcmp(HandlerType, "unk.", 4) && nTrack >=0))
+ 			{
+ 				err = 0;
+ 				goto fin;
