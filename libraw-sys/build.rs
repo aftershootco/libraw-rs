@@ -68,17 +68,17 @@ fn vcpkg_install_command(vcpkg_root: &PathBuf, vcpkg_triplet: &str, manifest_dir
 
 fn parse_build_line(line: &str) -> Option<(String, String, u64, u64)> {
     let line = Some(line)
-        .filter(|line| line.starts_with("Starting package "))
-        .map(|line| line.trim_start_matches("Starting package ").to_string())?;
+        .filter(|line| line.starts_with("Installing "))
+        .map(|line| line.trim_start_matches("Installing ").to_string())?;
 
-    let progress_and_pkg_trp = line.splitn(2, ':').collect::<Vec<_>>();
+    let progress_and_pkg_trp = line.splitn(2, ' ').collect::<Vec<_>>();
     if progress_and_pkg_trp.len() != 2 {
         return None;
     }
 
     let pkg_with_triplet = progress_and_pkg_trp[1].trim();
 
-    let (pkg, triplet) = match pkg_with_triplet
+    let (pkg, triplet_ver) = match pkg_with_triplet
         .rsplitn(2, ':')
         .collect::<Vec<_>>()
         .as_slice()
@@ -86,6 +86,12 @@ fn parse_build_line(line: &str) -> Option<(String, String, u64, u64)> {
         [t, p] => (p.to_string(), t.to_string()),
         _ => return None,
     };
+
+    let triplet_and_ver = triplet_ver.splitn(2, '@').collect::<Vec<_>>();
+    if triplet_and_ver.len() != 2 {
+        return None;
+    }
+    let triplet = triplet_and_ver[0].to_string();
 
     let (cnt, tot) = match &progress_and_pkg_trp[0]
         .splitn(2, '/')
@@ -116,8 +122,8 @@ fn vcpkg_install(out_dir: &Path) -> Result<String> {
     let reader = BufReader::new(output.stdout.take().expect("could not get stdout"));
 
     for line in reader.lines() {
-        if let Some((pkg, triplet, _num, _tot)) = parse_build_line(&line.unwrap()) {
-            println!("Compiling {}", &format!("{} (triplet {})", pkg, triplet))
+        if let Some((pkg, triplet, num, tot)) = parse_build_line(&line.unwrap()) {
+            println!("Compiling package {}/{}: {} ({})", num, tot, pkg, triplet)
         }
     }
     let output = output.wait_with_output()?;
