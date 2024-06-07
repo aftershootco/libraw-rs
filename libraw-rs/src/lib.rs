@@ -265,6 +265,11 @@ impl Processor {
         unsafe { &mut self.inner.as_mut().params }
     }
 
+    /// Get the output rawparameters
+    pub fn rawparams(&'_ mut self) -> &'_ mut sys::libraw_raw_unpack_params_t {
+        unsafe { &mut self.inner.as_mut().rawparams }
+    }
+
     /// Get the colordata
     pub fn color(&'_ self) -> &'_ sys::libraw_colordata_t {
         unsafe { &self.inner.as_ref().color }
