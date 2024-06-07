@@ -622,6 +622,25 @@ impl ProcessorBuilder {
         }
     }
 
+    pub fn with_raw_params<P: IntoIterator<Item = RawParams>>(mut self, raw_params: P) -> Self {
+        let libraw_params = unsafe { &mut self.inner.as_mut().rawparams };
+        for param in raw_params {
+            match param {
+                RawParams::UseDngSdk(v) => libraw_params.use_dngsdk = v,
+                RawParams::UseRawSpeed(v) => libraw_params.use_rawspeed = v,
+                RawParams::Options(v) => libraw_params.options = v,
+                RawParams::ShotSelect(v) => libraw_params.shot_select = v,
+                RawParams::MaxRawMemoryMb(v) => libraw_params.max_raw_memory_mb = v,
+                RawParams::Specials(v) => libraw_params.specials = v,
+                RawParams::CoolscanNefGamma(v) => libraw_params.coolscan_nef_gamma = v,
+                RawParams::SonyArw2PosterizationThr(v) => {
+                    libraw_params.sony_arw2_posterization_thr = v
+                }
+            }
+        }
+        self
+    }
+
     pub fn with_params<P: IntoIterator<Item = Params>>(mut self, params: P) -> Self {
         let libraw_params = unsafe { &mut self.inner.as_mut().params };
         use Params::*;
@@ -739,6 +758,19 @@ impl ProcessedImage {
     pub fn size(&self) -> usize {
         self.raw().data_size as usize
     }
+}
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum RawParams {
+    UseRawSpeed(i32),
+    UseDngSdk(i32),
+    Options(u32),
+    ShotSelect(u32),
+    Specials(u32),
+    MaxRawMemoryMb(u32),
+    SonyArw2PosterizationThr(i32),
+    CoolscanNefGamma(f32),
 }
 
 #[derive(Debug)]

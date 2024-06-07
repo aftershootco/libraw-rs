@@ -25,7 +25,7 @@
     "registries": [
       {
         "kind": "git",
-        "repository": "https://github.com/aftershootco/vcpkg-as-overlay",
+        "repository": "ssh://git@github.com/aftershootco/vcpkg-as-overlay",
         "baseline": "07aea0cf837d3ba6e079bbb81ab1d6db722aae4d",
         "packages": ["dng-sdk", "libjxl", "rawspeed", "xmp-toolkit"]
       }

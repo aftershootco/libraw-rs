@@ -39,7 +39,7 @@ fn get_vcpkg_triplet(target: &str) -> &'static str {
         "x86_64-pc-windows-msvc" => "x64-windows-static",
         "x86_64-pc-windows-gnu" => "x64-mingw-static",
         "wasm32-unknown-emscripten" => "wasm32-emscripten",
-        &_ => panic!("Unsupported target {}", target)
+        &_ => panic!("Unsupported target {}", target),
     }
 }
 
@@ -114,7 +114,10 @@ fn vcpkg_install(out_dir: &Path) -> Result<String> {
     let target = std::env::var("TARGET").unwrap();
     let triplet = get_vcpkg_triplet(&target);
     let mut command = vcpkg_install_command(&toolchain_dir, triplet, env!("CARGO_MANIFEST_DIR"));
-    command.arg(&format!("--x-install-root={}/vcpkg_installed", out_dir.display()));
+    command.arg(&format!(
+        "--x-install-root={}/vcpkg_installed",
+        out_dir.display()
+    ));
     command.stdout(Stdio::piped());
 
     let mut output = command.spawn()?;
@@ -134,16 +137,27 @@ fn vcpkg_install(out_dir: &Path) -> Result<String> {
         return Err("failed vcpkg install".into());
     }
 
-    println!("cargo:rustc-link-search=native={}/vcpkg_installed/{}/lib", out_dir.display(), triplet);
+    println!(
+        "cargo:rustc-link-search=native={}/vcpkg_installed/{}/lib",
+        out_dir.display(),
+        triplet
+    );
 
-    Ok(format!("{}/vcpkg_installed/{}/include", out_dir.display(), triplet))
+    Ok(format!(
+        "{}/vcpkg_installed/{}/include",
+        out_dir.display(),
+        triplet
+    ))
 }
 
 fn apply_patch(libraw_dir: impl AsRef<Path>) -> Result<()> {
     let mut command = Command::new("git");
     command.current_dir(&libraw_dir);
     command.arg("apply");
-    command.arg(format!("{}/Add_IntoPix_decoder_and_other_fixes.patch", env!("CARGO_MANIFEST_DIR")));
+    command.arg(format!(
+        "{}/Add_IntoPix_decoder_and_other_fixes.patch",
+        env!("CARGO_MANIFEST_DIR")
+    ));
     command.arg("--ignore-whitespace");
 
     if let Ok(output) = command.output() {
@@ -203,7 +217,11 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>, vcpkg_include_dir: &str) -> Result<()> {
+fn build(
+    out_dir: impl AsRef<Path>,
+    libraw_dir: impl AsRef<Path>,
+    vcpkg_include_dir: &str,
+) -> Result<()> {
     std::env::set_current_dir(out_dir.as_ref()).expect("Unable to set current dir");
 
     let mut libraw = cc::Build::new();
@@ -314,7 +332,14 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>, vcpkg_include_
     ];
 
     // Don't set if emscripten as rawspeed doesn't build on wasm yet
-    #[cfg(any(all(not(target_arch = "wasm32"), not(target_os = "unknown"), feature = "openmp"), target_os = "windows"))]
+    #[cfg(any(
+        all(
+            not(target_arch = "wasm32"),
+            not(target_os = "unknown"),
+            feature = "openmp"
+        ),
+        target_os = "windows"
+    ))]
     {
         sources.push("RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp");
         sources.push("../src/rawspeed_cameras.cpp");
@@ -339,7 +364,10 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>, vcpkg_include_
     libraw.include(format!("{}/dng_sdk", vcpkg_include_dir));
     libraw.include(format!("{}/rawspeed", vcpkg_include_dir));
     libraw.include(format!("{}/rawspeed/external", vcpkg_include_dir));
-    libraw.include(format!("{}/RawSpeed3/rawspeed3_c_api", libraw_dir.as_ref().display()));
+    libraw.include(format!(
+        "{}/RawSpeed3/rawspeed3_c_api",
+        libraw_dir.as_ref().display()
+    ));
 
     #[cfg(unix)]
     {
@@ -403,7 +431,14 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>, vcpkg_include_
     libraw.flag("-DUSE_DNGSDK");
 
     // Don't set if emscripten as rawspeed doesn't build on wasm yet
-    #[cfg(any(all(not(target_arch = "wasm32"), not(target_os = "unknown"), feature = "openmp"), target_os = "windows"))]
+    #[cfg(any(
+        all(
+            not(target_arch = "wasm32"),
+            not(target_os = "unknown"),
+            feature = "openmp"
+        ),
+        target_os = "windows"
+    ))]
     {
         libraw.flag("-DRAWSPEED_BUILDLIB");
         libraw.flag("-DUSE_RAWSPEED3");
@@ -430,7 +465,14 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>, vcpkg_include_
     );
     println!("cargo:rustc-link-lib=static=raw_r");
 
-    #[cfg(any(all(not(target_arch = "wasm32"), not(target_os = "unknown"), feature = "openmp"), target_os = "windows"))]
+    #[cfg(any(
+        all(
+            not(target_arch = "wasm32"),
+            not(target_os = "unknown"),
+            feature = "openmp"
+        ),
+        target_os = "windows"
+    ))]
     println!("cargo:rustc-link-lib=static=rawspeed");
     println!("cargo:rustc-link-lib=static=dng");
     println!("cargo:rustc-link-lib=static=jxl_threads");

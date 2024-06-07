@@ -1,12 +1,13 @@
-use libraw_r::traits::LRString;
+use libraw_r::{traits::LRString, Params, Processor, RawParams};
 use std::path::Path;
 
 pub fn main() -> anyhow::Result<()> {
     for arg in std::env::args().skip(1) {
-        // let mut p = Processor::builder()
-        //     .with_params([Params::HalfSize(true)])
-        //     .build();
-        let mut p = libraw_r::defaults::half_size();
+        let mut p = Processor::builder()
+            .with_raw_params([RawParams::UseDngSdk(2), RawParams::UseRawSpeed(1)])
+            .with_params([Params::HalfSize(true)])
+            .build();
+        //let mut p = libraw_r::defaults::half_size();
         p.open(&arg)?;
         println!(
             "Processing {arg} ({}, {})",
