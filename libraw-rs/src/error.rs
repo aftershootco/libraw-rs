@@ -1,4 +1,3 @@
-use crate::sys;
 
 #[derive(Debug, thiserror::Error)]
 pub enum LibrawError {

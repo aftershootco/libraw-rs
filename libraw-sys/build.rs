@@ -36,7 +36,7 @@ fn get_vcpkg_triplet(target: &str) -> &'static str {
         "x86_64-apple-darwin" => "x64-osx",
         "aarch64-apple-darwin" => "arm64-osx",
         "x86_64-unknown-linux-gnu" => "x64-linux",
-        "x86_64-pc-windows-msvc" => "x64-windows-static",
+        "x86_64-pc-windows-msvc" => "x64-windows-static-md",
         "x86_64-pc-windows-gnu" => "x64-mingw-static",
         "wasm32-unknown-emscripten" => "wasm32-emscripten",
         &_ => panic!("Unsupported target {}", target),
@@ -364,6 +364,8 @@ fn build(
     libraw.include(format!("{}/dng_sdk", vcpkg_include_dir));
     libraw.include(format!("{}/rawspeed", vcpkg_include_dir));
     libraw.include(format!("{}/rawspeed/external", vcpkg_include_dir));
+    libraw.include(format!("{}/IpxCpuCodec", vcpkg_include_dir));
+    libraw.include(format!("{}/RawSpeed3/rawspeed3_c_api", libraw_dir.as_ref().display()));
     libraw.include(format!(
         "{}/RawSpeed3/rawspeed3_c_api",
         libraw_dir.as_ref().display()
@@ -451,11 +453,11 @@ fn build(
 
     libraw.flag("-DUSE_ZLIB");
 
-    #[cfg(unix)]
-    libraw.static_flag(true);
-
-    #[cfg(windows)]
-    libraw.static_crt(true);
+    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "unknown")))]
+    {
+        libraw.flag("-DUSE_INTOPIX_CPU_CODEC");
+        libraw.flag("-DIPXCPUCODEC_LIB_STATIC");
+    }
 
     libraw.compile("raw_r");
 
@@ -485,9 +487,15 @@ fn build(
     println!("cargo:rustc-link-lib=static=brotlicommon");
     println!("cargo:rustc-link-lib=static=jpeg");
     println!("cargo:rustc-link-lib=static=pugixml");
+    println!("cargo:rustc-link-lib=static=XMP");
+
+    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "unknown")))]
+    {
+        println!("cargo:rustc-link-lib=static=IpxCpuCodec_static");
+    }
+
     #[cfg(target_os = "macos")]
     {
-        println!("cargo:rustc-link-lib=static=XMP");
         println!("cargo:rustc-link-lib=framework=CoreFoundation");
         println!("cargo:rustc-link-lib=framework=CoreServices");
         println!("cargo:rustc-link-lib=static=expat");
@@ -496,17 +504,17 @@ fn build(
     }
     #[cfg(target_os = "linux")]
     {
-        println!("cargo:rustc-link-lib=static=XMP");
         println!("cargo:rustc-link-lib=static=expat");
         println!("cargo:rustc-link-lib=static=png16");
         println!("cargo:rustc-link-lib=static=z");
     }
     #[cfg(target_os = "windows")]
     {
-        println!("cargo:rustc-link-lib=static=XMP");
-        println!("cargo:rustc-link-lib=static=libexpatMT");
+        println!("cargo:rustc-link-lib=static=libexpatMD");
         println!("cargo:rustc-link-lib=static=libpng16");
         println!("cargo:rustc-link-lib=static=zlib");
+        // Needed by IntoPix
+        println!("cargo:rustc-link-lib=iphlpapi");
     }
 
     // Needed for libgomp linking on Linux, otherwise undefined references are thrown

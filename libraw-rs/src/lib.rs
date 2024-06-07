@@ -17,7 +17,6 @@ use core::ptr::NonNull;
 use core::sync::atomic::AtomicBool;
 use semver::Version;
 use std::ffi::CString;
-use std::ops::Drop;
 use std::path::Path;
 
 /// Returns the version of libraw

@@ -14,7 +14,11 @@
       "default-features": false,
       "features": ["jpeg8"]
     },
-    "pugixml"
+    "pugixml",
+    {
+      "name": "ipxcpucodec",
+      "platform": "!emscripten"
+    }
   ],
   "vcpkg-configuration": {
     "default-registry": {
@@ -26,8 +30,8 @@
       {
         "kind": "git",
         "repository": "ssh://git@github.com/aftershootco/vcpkg-as-overlay",
-        "baseline": "07aea0cf837d3ba6e079bbb81ab1d6db722aae4d",
-        "packages": ["dng-sdk", "libjxl", "rawspeed", "xmp-toolkit"]
+        "baseline": "62a44a2d305e800da5f951e7539b1e83120092b8",
+        "packages": ["dng-sdk", "ipxcpucodec","libjxl", "rawspeed", "xmp-toolkit"]
       }
     ]
   }
