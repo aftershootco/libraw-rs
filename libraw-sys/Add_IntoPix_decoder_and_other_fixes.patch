@@ -7,7 +7,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/libraw/libraw_datastream.h b/libraw/libraw_datastream.h
 --- a/libraw/libraw_datastream.h	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/libraw/libraw_datastream.h	(date 1717163037267)
++++ b/libraw/libraw_datastream.h	(date 1717668518983)
 @@ -60,7 +60,9 @@
  #define qMacOS 0
  #elif defined(__APPLE__)
@@ -25,7 +25,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/src/integration/dngsdk_glue.cpp b/src/integration/dngsdk_glue.cpp
 --- a/src/integration/dngsdk_glue.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/src/integration/dngsdk_glue.cpp	(date 1717163037278)
++++ b/src/integration/dngsdk_glue.cpp	(date 1717762797122)
 @@ -111,11 +111,9 @@
  
    if (libraw_internal_data.unpacker_data.tiff_compress == 52546) // regardless of flags or use_dngsdk value!
@@ -38,6 +38,14 @@ diff --git a/src/integration/dngsdk_glue.cpp b/src/integration/dngsdk_glue.cpp
  		  return 0; // Old DNG SDK
    }
  
+@@ -506,3 +504,7 @@
+   dnghost = p;
+ #endif
+ }
++void *LibRaw::get_dng_host() {
++	return dnghost;
++}
++
 Index: RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
@@ -45,7 +53,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp b/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp
 --- a/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp	(date 1717163037272)
++++ b/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp	(date 1717668518983)
 @@ -1,7 +1,7 @@
  #include "rawspeed3_capi.h"
  #include "RawSpeed-API.h"
@@ -62,7 +70,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/src/decoders/dng.cpp b/src/decoders/dng.cpp
 --- a/src/decoders/dng.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/src/decoders/dng.cpp	(date 1717163037283)
++++ b/src/decoders/dng.cpp	(date 1717668518983)
 @@ -189,11 +189,10 @@
      throw LIBRAW_EXCEPTION_IO_CORRUPT;
    struct jpeg_decompress_struct cinfo;
@@ -113,7 +121,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/src/decoders/decoders_libraw_dcrdefs.cpp b/src/decoders/decoders_libraw_dcrdefs.cpp
 --- a/src/decoders/decoders_libraw_dcrdefs.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/src/decoders/decoders_libraw_dcrdefs.cpp	(date 1717668351071)
++++ b/src/decoders/decoders_libraw_dcrdefs.cpp	(date 1717668518983)
 @@ -112,10 +112,142 @@
      ljpeg_end(&jh);
    }
@@ -257,6 +265,22 @@ diff --git a/src/decoders/decoders_libraw_dcrdefs.cpp b/src/decoders/decoders_li
  }
  
  void LibRaw::nikon_coolscan_load_raw()
+Index: libraw/libraw.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/libraw/libraw.h b/libraw/libraw.h
+--- a/libraw/libraw.h	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
++++ b/libraw/libraw.h	(date 1717762798470)
+@@ -348,6 +348,7 @@
+   virtual int adobe_coeff(unsigned, const char *, int internal_only = 0);
+ 
+   void set_dng_host(void *);
++  void *get_dng_host();
+ 
+ protected:
+   static void *memmem(char *haystack, size_t haystacklen, char *needle,
 Index: src/utils/decoder_info.cpp
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
@@ -264,7 +288,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/src/utils/decoder_info.cpp b/src/utils/decoder_info.cpp
 --- a/src/utils/decoder_info.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/src/utils/decoder_info.cpp	(date 1717659352621)
++++ b/src/utils/decoder_info.cpp	(date 1717668518983)
 @@ -120,7 +120,9 @@
    else if (load_raw == &LibRaw::nikon_he_load_raw_placeholder)
    {
@@ -275,6 +299,45 @@ diff --git a/src/utils/decoder_info.cpp b/src/utils/decoder_info.cpp
    }
    else if (load_raw == &LibRaw::nikon_load_sraw)
    {
+Index: src/libraw_c_api.cpp
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/libraw_c_api.cpp b/src/libraw_c_api.cpp
+--- a/src/libraw_c_api.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
++++ b/src/libraw_c_api.cpp	(date 1717762824152)
+@@ -17,6 +17,9 @@
+ 
+  */
+ 
++#ifdef USE_DNGSDK
++#include <dng_host.h>
++#endif
+ #include <math.h>
+ #include <errno.h>
+ #include "libraw/libraw.h"
+@@ -33,6 +36,9 @@
+     try
+     {
+       ret = new LibRaw(flags);
++#ifdef USE_DNGSDK
++      ret->set_dng_host(new dng_host);
++#endif
+     }
+     catch (const std::bad_alloc& )
+     {
+@@ -186,6 +192,10 @@
+     if (!lr)
+       return;
+     LibRaw *ip = (LibRaw *)lr->parent_class;
++#ifdef USE_DNGSDK
++    delete static_cast<dng_host *>(ip->get_dng_host());
++    ip->set_dng_host(NULL);
++#endif
+     delete ip;
+   }
+ 
 Index: src/metadata/cr3_parser.cpp
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
@@ -282,7 +345,7 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 ===================================================================
 diff --git a/src/metadata/cr3_parser.cpp b/src/metadata/cr3_parser.cpp
 --- a/src/metadata/cr3_parser.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/src/metadata/cr3_parser.cpp	(date 1717425689247)
++++ b/src/metadata/cr3_parser.cpp	(date 1717668518983)
 @@ -499,7 +499,8 @@
      {
  		if (nesting == 0)
