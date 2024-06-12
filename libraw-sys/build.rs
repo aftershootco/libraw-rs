@@ -365,7 +365,10 @@ fn build(
     libraw.include(format!("{}/rawspeed", vcpkg_include_dir));
     libraw.include(format!("{}/rawspeed/external", vcpkg_include_dir));
     libraw.include(format!("{}/IpxCpuCodec", vcpkg_include_dir));
-    libraw.include(format!("{}/RawSpeed3/rawspeed3_c_api", libraw_dir.as_ref().display()));
+    libraw.include(format!(
+        "{}/RawSpeed3/rawspeed3_c_api",
+        libraw_dir.as_ref().display()
+    ));
     libraw.include(format!(
         "{}/RawSpeed3/rawspeed3_c_api",
         libraw_dir.as_ref().display()

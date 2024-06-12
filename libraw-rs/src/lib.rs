@@ -19,6 +19,9 @@ use semver::Version;
 use std::ffi::CString;
 use std::path::Path;
 
+pub const LIBRAW_RAWOPTIONS_DNG_STAGE3_IFPRESENT: u32 =
+    sys::LibRaw_processing_options_LIBRAW_RAWOPTIONS_DNG_STAGE3_IFPRESENT;
+
 /// Returns the version of libraw
 pub const fn version() -> Version {
     Version {
@@ -632,7 +635,7 @@ impl ProcessorBuilder {
             match param {
                 RawParams::UseDngSdk(v) => libraw_params.use_dngsdk = v,
                 RawParams::UseRawSpeed(v) => libraw_params.use_rawspeed = v,
-                RawParams::Options(v) => libraw_params.options = v,
+                RawParams::Options(v) => libraw_params.options |= v,
                 RawParams::ShotSelect(v) => libraw_params.shot_select = v,
                 RawParams::MaxRawMemoryMb(v) => libraw_params.max_raw_memory_mb = v,
                 RawParams::Specials(v) => libraw_params.specials = v,

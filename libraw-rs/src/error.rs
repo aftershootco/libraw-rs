@@ -1,4 +1,3 @@
-
 #[derive(Debug, thiserror::Error)]
 pub enum LibrawError {
     #[error("{0}")]
