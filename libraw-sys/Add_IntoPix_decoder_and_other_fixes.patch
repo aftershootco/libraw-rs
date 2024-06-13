@@ -6,8 +6,8 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/libraw/libraw_datastream.h b/libraw/libraw_datastream.h
---- a/libraw/libraw_datastream.h	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/libraw/libraw_datastream.h	(date 1717668518983)
+--- a/libraw/libraw_datastream.h	(revision a5d1ef3bb36995d3db2703619aa1ac2f4d7fdb98)
++++ b/libraw/libraw_datastream.h	(date 1718261299845)
 @@ -60,7 +60,9 @@
  #define qMacOS 0
  #elif defined(__APPLE__)
@@ -24,8 +24,8 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/src/integration/dngsdk_glue.cpp b/src/integration/dngsdk_glue.cpp
---- a/src/integration/dngsdk_glue.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/src/integration/dngsdk_glue.cpp	(date 1717762797122)
+--- a/src/integration/dngsdk_glue.cpp	(revision a5d1ef3bb36995d3db2703619aa1ac2f4d7fdb98)
++++ b/src/integration/dngsdk_glue.cpp	(date 1718261299845)
 @@ -111,11 +111,9 @@
  
    if (libraw_internal_data.unpacker_data.tiff_compress == 52546) // regardless of flags or use_dngsdk value!
@@ -38,7 +38,7 @@ diff --git a/src/integration/dngsdk_glue.cpp b/src/integration/dngsdk_glue.cpp
  		  return 0; // Old DNG SDK
    }
  
-@@ -506,3 +504,7 @@
+@@ -508,3 +506,7 @@
    dnghost = p;
  #endif
  }
@@ -52,8 +52,8 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp b/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp
---- a/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp	(date 1717668518983)
+--- a/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp	(revision a5d1ef3bb36995d3db2703619aa1ac2f4d7fdb98)
++++ b/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp	(date 1718261299845)
 @@ -1,7 +1,7 @@
  #include "rawspeed3_capi.h"
  #include "RawSpeed-API.h"
@@ -63,65 +63,14 @@ diff --git a/RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp b/RawSpeed3/rawspeed3_
  
  extern const char* _rawspeed3_data_xml;
  
-Index: src/decoders/dng.cpp
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/src/decoders/dng.cpp b/src/decoders/dng.cpp
---- a/src/decoders/dng.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/src/decoders/dng.cpp	(date 1717668518983)
-@@ -189,11 +189,10 @@
-     throw LIBRAW_EXCEPTION_IO_CORRUPT;
-   struct jpeg_decompress_struct cinfo;
-   JSAMPARRAY buf;
--  JSAMPLE(*pixel)[3];
-   unsigned sorder = order, ntags, opcode, deg, i, j, c;
-   unsigned trow = 0, tcol = 0, row, col;
-   INT64 save = data_offset - 4;
--  ushort cur[3][256];
-+  ushort cur[4][256];
-   double coeff[9], tot;
- 
-   if (meta_offset)
-@@ -212,7 +211,7 @@
-         continue;
-       }
-       fseek(ifp, 20, SEEK_CUR);
--      if ((c = get4()) > 2)
-+      if ((c = get4()) > 3)
-         break;
-       fseek(ifp, 12, SEEK_CUR);
-       if ((deg = get4()) > 8)
-@@ -253,7 +252,7 @@
-     jpeg_read_header(&cinfo, TRUE);
-     jpeg_start_decompress(&cinfo);
-     buf = (*cinfo.mem->alloc_sarray)((j_common_ptr)&cinfo, JPOOL_IMAGE,
--                                     cinfo.output_width * 3, 1);
-+                                     cinfo.output_width * colors, 1);
-     try
-     {
-       while (cinfo.output_scanline < cinfo.output_height &&
-@@ -261,10 +260,9 @@
-       {
-         checkCancel();
-         jpeg_read_scanlines(&cinfo, buf, 1);
--        pixel = (JSAMPLE(*)[3])buf[0];
-         for (col = 0; col < cinfo.output_width && tcol + col < width; col++)
-         {
--          FORC3 image[row * width + tcol + col][c] = cur[c][pixel[col][c]];
-+          FORC(colors) image[row * width + tcol + col][c] = cur[c][buf[0][col * colors + c]];
-         }
-       }
-     }
 Index: src/decoders/decoders_libraw_dcrdefs.cpp
 IDEA additional info:
 Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/src/decoders/decoders_libraw_dcrdefs.cpp b/src/decoders/decoders_libraw_dcrdefs.cpp
---- a/src/decoders/decoders_libraw_dcrdefs.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/src/decoders/decoders_libraw_dcrdefs.cpp	(date 1717668518983)
+--- a/src/decoders/decoders_libraw_dcrdefs.cpp	(revision a5d1ef3bb36995d3db2703619aa1ac2f4d7fdb98)
++++ b/src/decoders/decoders_libraw_dcrdefs.cpp	(date 1718261299845)
 @@ -112,10 +112,142 @@
      ljpeg_end(&jh);
    }
@@ -271,8 +220,8 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/libraw/libraw.h b/libraw/libraw.h
---- a/libraw/libraw.h	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/libraw/libraw.h	(date 1717762798470)
+--- a/libraw/libraw.h	(revision a5d1ef3bb36995d3db2703619aa1ac2f4d7fdb98)
++++ b/libraw/libraw.h	(date 1718261299845)
 @@ -348,6 +348,7 @@
    virtual int adobe_coeff(unsigned, const char *, int internal_only = 0);
  
@@ -287,8 +236,8 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/src/utils/decoder_info.cpp b/src/utils/decoder_info.cpp
---- a/src/utils/decoder_info.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/src/utils/decoder_info.cpp	(date 1717668518983)
+--- a/src/utils/decoder_info.cpp	(revision a5d1ef3bb36995d3db2703619aa1ac2f4d7fdb98)
++++ b/src/utils/decoder_info.cpp	(date 1718261299845)
 @@ -120,7 +120,9 @@
    else if (load_raw == &LibRaw::nikon_he_load_raw_placeholder)
    {
@@ -305,8 +254,8 @@ Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
 <+>UTF-8
 ===================================================================
 diff --git a/src/libraw_c_api.cpp b/src/libraw_c_api.cpp
---- a/src/libraw_c_api.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/src/libraw_c_api.cpp	(date 1717762824152)
+--- a/src/libraw_c_api.cpp	(revision a5d1ef3bb36995d3db2703619aa1ac2f4d7fdb98)
++++ b/src/libraw_c_api.cpp	(date 1718261299845)
 @@ -17,6 +17,9 @@
  
   */
@@ -338,21 +287,3 @@ diff --git a/src/libraw_c_api.cpp b/src/libraw_c_api.cpp
      delete ip;
    }
  
-Index: src/metadata/cr3_parser.cpp
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
-diff --git a/src/metadata/cr3_parser.cpp b/src/metadata/cr3_parser.cpp
---- a/src/metadata/cr3_parser.cpp	(revision bebc44bfbe1924308305fb37a2158d9dd46084ac)
-+++ b/src/metadata/cr3_parser.cpp	(date 1717668518983)
-@@ -499,7 +499,8 @@
-     {
- 		if (nesting == 0)
- 		{
--			if(!memcmp(thdr,"II*\0",4) || !memcmp(thdr,"MM*\0",4))
-+		  if(!memcmp(thdr,"II*\0",4) || !memcmp(thdr,"MM*\0",4) ||
-+                ( !memcmp(HandlerType, "unk.", 4) && nTrack >=0))
- 			{
- 				err = 0;
- 				goto fin;
