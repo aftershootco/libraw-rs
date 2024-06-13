@@ -30,7 +30,7 @@
       {
         "kind": "git",
         "repository": "ssh://git@github.com/aftershootco/vcpkg-as-overlay",
-        "baseline": "89d5f349a087e73e81d96dd0670d44f7626820c8",
+        "baseline": "86843db5e496d507b2b3c09ca29d557953976357",
         "packages": ["dng-sdk", "ipxcpucodec","libjxl", "rawspeed", "xmp-toolkit"]
       }
     ]
