@@ -1,6 +1,6 @@
 [package]
 name = "libraw_r"
-version = "1.0.0-rc.1"
+version.workspace = true
 edition = "2021"
 license = "LGPL-2.1-or-later or CDDL-1.0"
 rust-version = "1.65"
