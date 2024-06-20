@@ -11,6 +11,7 @@ homepage = "https://github.com/aftershootco/libraw-sys"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+fast_image_resize = "4.0.0"
 futures = { version = "0.3.28", optional = true }
 image = { version = "0.24" , optional = true }
 img-parts = { version = "0.3.0", optional = true }
