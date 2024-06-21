@@ -11,7 +11,8 @@ pub mod traits;
 use alloc::sync::Arc;
 pub use error::LibrawError;
 use fast_image_resize as fr;
-use fr::ResizeOptions;
+use fr::{PixelType, ResizeOptions};
+use image::ColorType;
 
 extern crate alloc;
 extern crate libraw_sys as sys;
@@ -476,9 +477,9 @@ impl Processor {
                     _ => return Err(LibrawError::InvalidColor(processed.bits)),
                 };
 
-                let mut pixels = _processed.as_slice();
-                let mut width = processed.width as u32;
-                let mut height = processed.height as u32;
+                let pixels = _processed.as_slice();
+                let width = processed.width as u32;
+                let height = processed.height as u32;
                 let mut jpeg = Vec::new();
 
                 if let Some(expected_width) = expected_width {
@@ -487,6 +488,7 @@ impl Processor {
                         width as u32,
                         height as u32,
                         expected_width,
+                        colortype,
                     )?;
                     image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, quality).encode(
                         img.buffer(),
@@ -631,12 +633,16 @@ impl Processor {
         img_width: u32,
         img_height: u32,
         desired_width: u32,
+        img_color: ColorType,
     ) -> Result<(fr::images::Image<'a>, u32, u32), LibrawError> {
-        use core::num::NonZeroU32;
-        use fast_image_resize::IntoImageViewMut;
         let desired_height = Self::maintain_aspect_ratio(img_width, img_height, desired_width);
-        let mut src_image =
-            fr::images::Image::from_vec_u8(img_width, img_height, rgb_buffer, fr::PixelType::U8x4)
+        let pixel_type = match img_color {
+            ColorType::Rgb8 => PixelType::U8x3,
+            ColorType::Rgb16 => PixelType::U16x3,
+            _ => return Err(LibrawError::ResizingError),
+        };
+        let src_image =
+            fr::images::Image::from_vec_u8(img_width, img_height, rgb_buffer, pixel_type)
                 .map_err(|_| LibrawError::ResizingError)?;
 
         let mut dst_image =
