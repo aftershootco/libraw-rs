@@ -476,22 +476,28 @@ impl Processor {
                     _ => return Err(LibrawError::InvalidColor(processed.bits)),
                 };
 
-                let mut pixels = _processed.as_slice().to_vec();
+                let mut pixels = _processed.as_slice();
                 let mut width = processed.width as u32;
                 let mut height = processed.height as u32;
+                let mut jpeg = Vec::new();
 
                 if let Some(expected_width) = expected_width {
-                    let (img, w, h) =
-                        Self::resize_rgb(pixels, width as u32, height as u32, expected_width)?;
-                    pixels = img.buffer().to_vec();
-                    width = w;
-                    height = h;
+                    let (img, w, h) = Self::resize_rgb(
+                        pixels.to_vec(),
+                        width as u32,
+                        height as u32,
+                        expected_width,
+                    )?;
+                    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, quality).encode(
+                        img.buffer(),
+                        w,
+                        h,
+                        colortype,
+                    )?;
+                } else {
+                    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, quality)
+                        .encode(pixels, width, height, colortype)?;
                 }
-
-                let mut jpeg = Vec::new();
-                image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, quality)
-                    .encode(&pixels, width, height, colortype)?;
-
                 Ok(jpeg)
             }
             ImageFormat::Jpeg => {
