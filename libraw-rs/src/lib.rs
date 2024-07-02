@@ -482,7 +482,7 @@ impl Processor {
                 let height = processed.height as u32;
                 let mut jpeg = Vec::new();
 
-                if let Some(expected_width) = expected_width {
+                let img = if let Some(expected_width) = expected_width {
                     let (img, w, h) = Self::resize_rgb(
                         pixels.to_vec(),
                         width as u32,
@@ -490,16 +490,29 @@ impl Processor {
                         expected_width,
                         colortype,
                     )?;
-                    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, quality).encode(
-                        img.buffer(),
-                        w,
-                        h,
-                        colortype,
-                    )?;
+
+                    let img = turbojpeg::Image {
+                        pixels: img.buffer(),
+                        width: w as usize,
+                        height: h as usize,
+                        pitch: w as usize * 3,
+                        format: turbojpeg::PixelFormat::RGB,
+                    };
+                    jpeg = turbojpeg::compress(img, quality as i32, turbojpeg::Subsamp::Sub2x2)
+                        .unwrap()
+                        .to_vec();
                 } else {
-                    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, quality)
-                        .encode(pixels, width, height, colortype)?;
-                }
+                    let img = turbojpeg::Image {
+                        pixels: _processed.as_slice(),
+                        width: processed.width as usize,
+                        height: processed.height as usize,
+                        pitch: processed.width as usize * 3,
+                        format: turbojpeg::PixelFormat::RGB,
+                    };
+                    jpeg = turbojpeg::compress(img, quality as i32, turbojpeg::Subsamp::Sub2x2)
+                        .unwrap()
+                        .to_vec();
+                };
                 Ok(jpeg)
             }
             ImageFormat::Jpeg => {

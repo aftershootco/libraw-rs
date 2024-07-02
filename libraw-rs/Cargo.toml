@@ -19,6 +19,7 @@ libc = { version = "0.2.135", optional = true }
 libraw-sys = { version = "1.0.0-rc.2", path = "../libraw-sys" }
 semver = "1.0"
 thiserror = "1.0"
+turbojpeg = "1.1.0"
 
 [target.'cfg(windows)'.dependencies]
 widestring = "1.0.2"
