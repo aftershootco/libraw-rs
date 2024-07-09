@@ -10,6 +10,9 @@ pub mod traits;
 
 use alloc::sync::Arc;
 pub use error::LibrawError;
+use fast_image_resize as fr;
+use fr::{PixelType, ResizeOptions};
+use image::ColorType;
 
 extern crate alloc;
 extern crate libraw_sys as sys;
@@ -443,7 +446,11 @@ impl Processor {
     }
 
     /// Get the original without any rotation
-    pub fn to_jpeg_no_rotation(&mut self, quality: u8) -> Result<Vec<u8>, LibrawError> {
+    pub fn to_jpeg_no_rotation(
+        &mut self,
+        quality: u8,
+        expected_width: Option<u32>,
+    ) -> Result<Vec<u8>, LibrawError> {
         // Since this image is possibly has a flip
 
         // Now check if libraw_unpack has been called already
@@ -469,13 +476,43 @@ impl Processor {
                     16 => image::ColorType::Rgb16,
                     _ => return Err(LibrawError::InvalidColor(processed.bits)),
                 };
+
+                let pixels = _processed.as_slice();
+                let width = processed.width as u32;
+                let height = processed.height as u32;
                 let mut jpeg = Vec::new();
-                image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, quality).encode(
-                    _processed.as_slice(),
-                    processed.width as u32,
-                    processed.height as u32,
-                    colortype,
-                )?;
+
+                let img = if let Some(expected_width) = expected_width {
+                    let (img, w, h) = Self::resize_rgb(
+                        pixels.to_vec(),
+                        width as u32,
+                        height as u32,
+                        expected_width,
+                        colortype,
+                    )?;
+
+                    let img = turbojpeg::Image {
+                        pixels: img.buffer(),
+                        width: w as usize,
+                        height: h as usize,
+                        pitch: w as usize * 3,
+                        format: turbojpeg::PixelFormat::RGB,
+                    };
+                    jpeg = turbojpeg::compress(img, quality as i32, turbojpeg::Subsamp::Sub2x2)
+                        .unwrap()
+                        .to_vec();
+                } else {
+                    let img = turbojpeg::Image {
+                        pixels: _processed.as_slice(),
+                        width: processed.width as usize,
+                        height: processed.height as usize,
+                        pitch: processed.width as usize * 3,
+                        format: turbojpeg::PixelFormat::RGB,
+                    };
+                    jpeg = turbojpeg::compress(img, quality as i32, turbojpeg::Subsamp::Sub2x2)
+                        .unwrap()
+                        .to_vec();
+                };
                 Ok(jpeg)
             }
             ImageFormat::Jpeg => {
@@ -567,7 +604,7 @@ impl Processor {
         if jpg.is_ok() {
             jpg
         } else {
-            self.to_jpeg_no_rotation(quality)
+            self.to_jpeg_no_rotation(quality, None)
         }
     }
 
@@ -580,7 +617,7 @@ impl Processor {
         if jpg.is_ok() {
             jpg
         } else {
-            self.to_jpeg_no_rotation(quality)
+            self.to_jpeg_no_rotation(quality, None)
         }
     }
     pub fn jpeg_min_size(&mut self, quality: u8, threshold: u32) -> Result<Vec<u8>, LibrawError> {
@@ -588,7 +625,7 @@ impl Processor {
         if u32::from(t.theight * t.twidth) > threshold && self.unpack_thumb().is_ok() {
             self.get_jpeg()
         } else {
-            self.to_jpeg_no_rotation(quality)
+            self.to_jpeg_no_rotation(quality, None)
         }
     }
 
@@ -600,8 +637,42 @@ impl Processor {
         if f(self) {
             self.get_jpeg()
         } else {
-            self.to_jpeg_no_rotation(quality)
+            self.to_jpeg_no_rotation(quality, None)
         }
+    }
+
+    pub fn resize_rgb<'a>(
+        rgb_buffer: Vec<u8>,
+        img_width: u32,
+        img_height: u32,
+        desired_width: u32,
+        img_color: ColorType,
+    ) -> Result<(fr::images::Image<'a>, u32, u32), LibrawError> {
+        let desired_height = Self::maintain_aspect_ratio(img_width, img_height, desired_width);
+        let pixel_type = match img_color {
+            ColorType::Rgb8 => PixelType::U8x3,
+            ColorType::Rgb16 => PixelType::U16x3,
+            _ => return Err(LibrawError::ResizingError),
+        };
+        let src_image =
+            fr::images::Image::from_vec_u8(img_width, img_height, rgb_buffer, pixel_type)
+                .map_err(|_| LibrawError::ResizingError)?;
+
+        let mut dst_image =
+            fr::images::Image::new(desired_width, desired_height, src_image.pixel_type());
+
+        let mut resizer = fr::Resizer::new();
+        resizer.resize(&src_image, &mut dst_image, None)?;
+
+        Ok((dst_image, desired_width, desired_height))
+    }
+
+    /// Gives what should be the width given a height to maintain aspect ratio. Obviously to
+    /// get the aspect ration we need the old width and height.
+    fn maintain_aspect_ratio(old_width: u32, old_height: u32, target_width: u32) -> u32 {
+        let aspect_ratio = old_width as f32 / old_height as f32;
+
+        (target_width as f32 / aspect_ratio).round() as u32
     }
 }
 
