@@ -11,9 +11,8 @@ pub fn main() -> anyhow::Result<()> {
                 RawParams::UseRawSpeed(1),
                 RawParams::Options(LIBRAW_RAWOPTIONS_DNG_STAGE3_IFPRESENT),
             ])
-            .with_params([Params::HalfSize(false)])
+            .with_params([Params::HalfSize(true)])
             .build();
-        dbg!(p.rawparams().options);
         p.open(&arg)?;
         println!(
             "Processing {arg} ({}, {})",
@@ -23,7 +22,7 @@ pub fn main() -> anyhow::Result<()> {
 
         #[cfg(any(feature = "jpeg", feature = "default"))]
         {
-            let img = p.to_jpeg_no_rotation(100)?;
+            let img = p.to_jpeg_no_rotation(100, None)?;
             std::fs::write("./result.jpeg", img)?;
         }
         #[cfg(not(feature = "jpeg"))]

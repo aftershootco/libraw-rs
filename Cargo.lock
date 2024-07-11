@@ -662,15 +662,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c198f91728a82281a64e1f4f9eeb25d82cb32a5de251c6bd1b5154d63a8e7bd"
 
 [[package]]
-name = "libjpeg-sys"
-version = "0.1.0"
-source = "git+https://github.com/aftershootco/libjpeg-sys#859254b8249fc94c356e8a31d3693681a26fd94c"
-dependencies = [
- "anyhow",
- "cmake",
-]
-
-[[package]]
 name = "libloading"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -689,8 +680,6 @@ dependencies = [
  "dunce",
  "fs_extra",
  "libc",
- "libjpeg-sys",
- "libz-sys",
  "openmp-sys",
  "pkg-config",
  "shellexpand",
@@ -710,6 +699,7 @@ dependencies = [
  "libraw-sys",
  "semver",
  "thiserror",
+ "turbojpeg",
  "widestring",
 ]
 
@@ -721,17 +711,6 @@ checksum = "c0ff37bd590ca25063e35af745c343cb7a0271906fb7b37e4813e8f79f00268d"
 dependencies = [
  "bitflags 2.5.0",
  "libc",
-]
-
-[[package]]
-name = "libz-sys"
-version = "1.1.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e143b5e666b2695d28f6bca6497720813f699c9602dd7f5cac91008b8ada7f9"
-dependencies = [
- "cc",
- "pkg-config",
- "vcpkg",
 ]
 
 [[package]]
@@ -1178,16 +1157,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbojpeg"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "291e4517c03ca0b7a6fc7b69a9c5a0034e268de7b5a4ddf21d26dcc4c9cbadaa"
+dependencies = [
+ "libc",
+ "thiserror",
+ "turbojpeg-sys",
+]
+
+[[package]]
+name = "turbojpeg-sys"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3fa6daade3b979fb7454cce5ebcb9772ce7a1cf476ea27ed20ed06e13d9bc983"
+dependencies = [
+ "anyhow",
+ "cmake",
+ "libc",
+ "pkg-config",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
-
-[[package]]
-name = "vcpkg"
-version = "0.2.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "walkdir"
