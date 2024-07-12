@@ -9,10 +9,11 @@ pub mod progress;
 pub mod traits;
 
 use alloc::sync::Arc;
-pub use error::LibrawError;
-use fast_image_resize as fr;
-use fr::{PixelType, ResizeOptions};
+#[cfg(feature = "jpeg")]
 use image::ColorType;
+#[cfg(feature = "jpeg")]
+use fast_image_resize as fr;
+pub use error::LibrawError;
 
 extern crate alloc;
 extern crate libraw_sys as sys;
@@ -657,8 +658,8 @@ impl Processor {
     ) -> Result<(fr::images::Image<'a>, u32, u32), LibrawError> {
         let desired_height = Self::maintain_aspect_ratio(img_width, img_height, desired_width);
         let pixel_type = match img_color {
-            ColorType::Rgb8 => PixelType::U8x3,
-            ColorType::Rgb16 => PixelType::U16x3,
+            ColorType::Rgb8 => fr::PixelType::U8x3,
+            ColorType::Rgb16 => fr::PixelType::U16x3,
             _ => return Err(LibrawError::ResizingError),
         };
         let src_image =

@@ -20,7 +20,7 @@ pub fn main() -> anyhow::Result<()> {
             p.idata().model.as_ascii(),
         );
 
-        #[cfg(any(feature = "jpeg", feature = "default"))]
+        #[cfg(any(feature = "jpeg"))]
         {
             let img = p.to_jpeg_no_rotation(100, None)?;
             std::fs::write("./result.jpeg", img)?;
