@@ -9,11 +9,11 @@ pub mod progress;
 pub mod traits;
 
 use alloc::sync::Arc;
-#[cfg(feature = "jpeg")]
-use image::ColorType;
+pub use error::LibrawError;
 #[cfg(feature = "jpeg")]
 use fast_image_resize as fr;
-pub use error::LibrawError;
+#[cfg(feature = "jpeg")]
+use image::ColorType;
 
 extern crate alloc;
 extern crate libraw_sys as sys;
@@ -23,6 +23,11 @@ use semver::Version;
 use std::ffi::CString;
 use std::path::Path;
 
+#[cfg(target_family = "windows")]
+pub const LIBRAW_RAWOPTIONS_DNG_STAGE3_IFPRESENT: i32 =
+    sys::LibRaw_processing_options_LIBRAW_RAWOPTIONS_DNG_STAGE3_IFPRESENT;
+
+#[cfg(target_family = "unix")]
 pub const LIBRAW_RAWOPTIONS_DNG_STAGE3_IFPRESENT: u32 =
     sys::LibRaw_processing_options_LIBRAW_RAWOPTIONS_DNG_STAGE3_IFPRESENT;
 

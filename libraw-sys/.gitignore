@@ -1,2 +1,3 @@
 target
 Cargo.lock
+/libraw-sys/vcpkg/*
