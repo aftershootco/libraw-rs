@@ -5,32 +5,6 @@ use std::process::{Command, Stdio};
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
-fn guess_vcpkg_dir(base: &Path) -> Option<PathBuf> {
-    if let Some(index) = base
-        .components()
-        .position(|c| c == Component::Normal(OsStr::new("target")))
-    {
-        let guess = base
-            .components()
-            .take(index + 1)
-            .collect::<PathBuf>()
-            .join("vcpkg");
-
-        if guess.read_dir().ok()?.filter_map(|p| p.ok()).any(|p| {
-            p.path()
-                .file_name()
-                .map(|f| f == ".vcpkg-root")
-                .unwrap_or_default()
-        }) {
-            Some(guess)
-        } else {
-            None
-        }
-    } else {
-        None
-    }
-}
-
 fn get_vcpkg_triplet(target: &str) -> &'static str {
     match target {
         "x86_64-apple-darwin" => "x64-osx",
@@ -50,18 +24,21 @@ fn vcpkg_install_command(vcpkg_root: &PathBuf, vcpkg_triplet: &str, manifest_dir
     } else {
         x.push("vcpkg")
     }
+
     #[cfg(target_family = "windows")]
     {
         if let Err(_) = std::env::var("GIT_SSH") {
             let default_ssh = PathBuf::from("C:/Windows/System32/OpenSSH/ssh.exe");
             eprintln!(
-                "GIT_SSH not set. Checking for existence at {:?}",
+                "GIT_SSH not set. Checking for existence at {:?}.",
                 default_ssh
             );
             if default_ssh.exists() {
                 println!("SSH agent found at {:?}", default_ssh);
+                std::env::set_var("GIT_SSH", default_ssh);
+            } else {
+                eprintln!("You might have a problem with ssh setup on your machine.");
             }
-            std::env::set_var("GIT_SSH", default_ssh);
         }
     }
     let mut command = Command::new(x);
@@ -93,11 +70,16 @@ fn vcpkg_install(out_dir: &Path) -> Result<String> {
         install_script.set_extension("bat");
         #[cfg(target_family = "unix")]
         install_script.set_extension("sh");
-        Command::new(vcpkg_path.join(install_script))
+        let bootstrap_path = vcpkg_path.join(install_script);
+        if !bootstrap_path.exists() {
+            eprintln!("Cannot find boot script. Make sure project vcpkg folder is not empty.")
+        }
+        Command::new(bootstrap_path)
             .arg("-disableMetrics")
             .output()
             .unwrap();
     }
+
     let target = std::env::var("TARGET").unwrap();
     let triplet = get_vcpkg_triplet(&target);
     let mut command = vcpkg_install_command(&vcpkg_path, triplet, env!("CARGO_MANIFEST_DIR"));
@@ -107,11 +89,12 @@ fn vcpkg_install(out_dir: &Path) -> Result<String> {
     ));
     command.stdin(Stdio::inherit());
     command.stdout(Stdio::inherit());
+    command.stderr(Stdio::inherit());
 
     let output = command.spawn().unwrap().wait_with_output().unwrap();
 
     if !output.status.success() {
-        return Err("failed vcpkg install".into());
+        return Err("Failed vcpkg install".into());
     }
 
     println!(
