@@ -484,9 +484,11 @@ impl Processor {
 
         match ImageFormat::from(processed.type_) {
             ImageFormat::Bitmap => {
-                let colortype = match processed.bits {
-                    8 => image::ColorType::Rgb8,
-                    16 => image::ColorType::Rgb16,
+                let (colortype, pixelformat) = match (processed.colors, processed.bits) {
+                    (3, 8) => (image::ColorType::Rgb8, turbojpeg::PixelFormat::RGB),
+                    (3, 16) => (image::ColorType::Rgb16, turbojpeg::PixelFormat::RGB),
+                    (1, 8) => (image::ColorType::L8, turbojpeg::PixelFormat::GRAY),
+                    (1, 16) => (image::ColorType::L16, turbojpeg::PixelFormat::GRAY),
                     _ => return Err(LibrawError::InvalidColor(processed.bits)),
                 };
 
@@ -496,7 +498,7 @@ impl Processor {
                 let mut jpeg = Vec::new();
 
                 let img = if let Some(expected_width) = expected_width {
-                    let (img, w, h) = Self::resize_rgb(
+                    let (img, w, h) = Self::resize_image_buffer(
                         pixels.to_vec(),
                         width as u32,
                         height as u32,
@@ -509,10 +511,10 @@ impl Processor {
                         width: w as usize,
                         height: h as usize,
                         pitch: w as usize * 3,
-                        format: turbojpeg::PixelFormat::RGB,
+                        format: pixelformat,
                     };
                     jpeg = turbojpeg::compress(img, quality as i32, turbojpeg::Subsamp::Sub2x2)
-                        .unwrap()
+                        .map_err(|_| LibrawError::ResizingError)?
                         .to_vec();
                 } else {
                     let img = turbojpeg::Image {
@@ -520,10 +522,10 @@ impl Processor {
                         width: processed.width as usize,
                         height: processed.height as usize,
                         pitch: processed.width as usize * 3,
-                        format: turbojpeg::PixelFormat::RGB,
+                        format: pixelformat,
                     };
                     jpeg = turbojpeg::compress(img, quality as i32, turbojpeg::Subsamp::Sub2x2)
-                        .unwrap()
+                        .map_err(|_| LibrawError::ResizingError)?
                         .to_vec();
                 };
                 Ok(jpeg)
@@ -654,17 +656,20 @@ impl Processor {
         }
     }
 
-    pub fn resize_rgb<'a>(
+    pub fn resize_image_buffer<'a>(
         rgb_buffer: Vec<u8>,
         img_width: u32,
         img_height: u32,
         desired_width: u32,
         img_color: ColorType,
     ) -> Result<(fr::images::Image<'a>, u32, u32), LibrawError> {
+        use fr::PixelType;
         let desired_height = Self::maintain_aspect_ratio(img_width, img_height, desired_width);
         let pixel_type = match img_color {
-            ColorType::Rgb8 => fr::PixelType::U8x3,
-            ColorType::Rgb16 => fr::PixelType::U16x3,
+            ColorType::Rgb8 => PixelType::U8x3,
+            ColorType::Rgb16 => PixelType::U16x3,
+            ColorType::L8 => PixelType::U8,
+            ColorType::L16 => PixelType::U16,
             _ => return Err(LibrawError::ResizingError),
         };
         let src_image =
