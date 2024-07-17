@@ -4,5 +4,5 @@ version.workspace = true
 
 [dependencies]
 libraw_r = {path = "../libraw-rs"}
-serde = { version = "1.0.204", features = ["derive"] }
-serde_json = "1.0.120"
+serde.workspace = true
+serde_json.workspace = true

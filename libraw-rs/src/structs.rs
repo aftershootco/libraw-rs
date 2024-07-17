@@ -5,9 +5,10 @@ use libraw_sys::{
     libraw_colordata_t, libraw_dng_color_t, libraw_dng_levels_t, libraw_image_sizes_t,
     libraw_imgother_t, libraw_iparams_t, libraw_raw_inset_crop_t, libraw_rawdata_t,
 };
-use serde::Serialize;
 
-#[derive(Serialize, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawIparams {
     pub make: String,
     pub model: String,
@@ -18,7 +19,7 @@ pub struct LibrawIparams {
     pub colors: i32,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawImageSizes {
     pub raw_height: u16,
     pub raw_width: u16,
@@ -35,7 +36,7 @@ pub struct LibrawImageSizes {
     pub raw_inset_crops: [LibrawRawInsetCrops; 2usize],
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawRawInsetCrops {
     pub cleft: u16,
     pub ctop: u16,
@@ -43,22 +44,22 @@ pub struct LibrawRawInsetCrops {
     pub cheight: u16,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawLensinfo {}
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawMakernotes {}
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawShootinginfo {}
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawOutputParams {}
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawRawUnpackParams {}
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawDngColor {
     pub parsedfields: u32,
     pub illuminant: u16,
@@ -67,7 +68,7 @@ pub struct LibrawDngColor {
     pub forwardmatrix: [[f32; 4usize]; 3usize],
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawDngLevels {
     pub parsedfields: u32,
     pub dng_cblack: Vec<u32>,
@@ -84,7 +85,7 @@ pub struct LibrawDngLevels {
     pub linear_response_limit: f32,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawColordata {
     pub cblack: Vec<u32>,
     pub black: u32,
@@ -99,7 +100,7 @@ pub struct LibrawColordata {
     pub dng_levels: LibrawDngLevels,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawImgother {
     pub iso_speed: f32,
     pub shutter: f32,
@@ -113,13 +114,13 @@ pub struct LibrawImgother {
     pub analogbalance: [f32; 4usize],
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawThumbnail {}
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawThumbnailList {}
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum LibrawRawdata {
     RawImage(Vec<u16>),
     Color4Image(Vec<[u16; 4]>),
@@ -129,7 +130,7 @@ pub enum LibrawRawdata {
     Float4Image(Vec<[f32; 4]>),
     None,
 }
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawData {
     pub sizes: Option<LibrawImageSizes>,
     pub idata: Option<LibrawIparams>,
@@ -144,7 +145,6 @@ pub struct LibrawData {
     pub other: Option<LibrawImgother>,
     pub thumbnail: Option<LibrawThumbnail>,
     pub thumbs_list: Option<LibrawThumbnailList>,
-    #[serde(skip_serializing)]
     pub rawdata: Option<LibrawRawdata>,
 }
 
@@ -263,17 +263,65 @@ impl From<&libraw_imgother_t> for LibrawImgother {
 impl From<&libraw_rawdata_t> for LibrawRawdata {
     fn from(value: &libraw_rawdata_t) -> Self {
         if !value.raw_image.is_null() {
-            unsafe {LibrawRawdata::RawImage(slice::from_raw_parts(value.raw_image, value.sizes.raw_width as usize * value.sizes.raw_height as usize).to_owned()) }
+            unsafe {
+                LibrawRawdata::RawImage(
+                    slice::from_raw_parts(
+                        value.raw_image,
+                        value.sizes.raw_width as usize * value.sizes.raw_height as usize,
+                    )
+                    .to_owned(),
+                )
+            }
         } else if !value.color3_image.is_null() {
-            unsafe {LibrawRawdata::Color3Image(slice::from_raw_parts(value.color3_image, value.sizes.raw_width  as usize * value.sizes.raw_height as usize).to_vec()) }
+            unsafe {
+                LibrawRawdata::Color3Image(
+                    slice::from_raw_parts(
+                        value.color3_image,
+                        value.sizes.raw_width as usize * value.sizes.raw_height as usize * 3,
+                    )
+                    .to_vec(),
+                )
+            }
         } else if !value.color4_image.is_null() {
-            unsafe {LibrawRawdata::Color4Image(slice::from_raw_parts(value.color4_image, value.sizes.raw_width  as usize * value.sizes.raw_height as usize).to_vec()) }
+            unsafe {
+                LibrawRawdata::Color4Image(
+                    slice::from_raw_parts(
+                        value.color4_image,
+                        value.sizes.raw_width as usize * value.sizes.raw_height as usize * 4,
+                    )
+                    .to_vec(),
+                )
+            }
         } else if !value.float_image.is_null() {
-            unsafe {LibrawRawdata::FloatImage(slice::from_raw_parts(value.float_image, value.sizes.raw_width as usize * value.sizes.raw_height as usize).to_owned()) }
+            unsafe {
+                LibrawRawdata::FloatImage(
+                    slice::from_raw_parts(
+                        value.float_image,
+                        value.sizes.raw_width as usize * value.sizes.raw_height as usize,
+                    )
+                    .to_owned(),
+                )
+            }
         } else if !value.float3_image.is_null() {
-            unsafe {LibrawRawdata::Float3Image(slice::from_raw_parts(value.float3_image, value.sizes.raw_width  as usize * value.sizes.raw_height as usize).to_vec()) }
+            unsafe {
+                LibrawRawdata::Float3Image(
+                    slice::from_raw_parts(
+                        value.float3_image,
+                        value.sizes.raw_width as usize * value.sizes.raw_height as usize * 3,
+                    )
+                    .to_vec(),
+                )
+            }
         } else if !value.float4_image.is_null() {
-            unsafe {LibrawRawdata::Float4Image(slice::from_raw_parts(value.float4_image, value.sizes.raw_width  as usize * value.sizes.raw_height as usize).to_vec()) }
+            unsafe {
+                LibrawRawdata::Float4Image(
+                    slice::from_raw_parts(
+                        value.float4_image,
+                        value.sizes.raw_width as usize * value.sizes.raw_height as usize * 4,
+                    )
+                    .to_vec(),
+                )
+            }
         } else {
             LibrawRawdata::None
         }
