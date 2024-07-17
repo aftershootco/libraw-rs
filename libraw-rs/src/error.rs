@@ -8,6 +8,7 @@ pub enum LibrawError {
     IoError(#[from] std::io::Error),
     #[error("{0}")]
     NulError(#[from] std::ffi::NulError),
+    #[cfg(feature = "jpeg")]
     #[error("{0}")]
     ResizeError(#[from] fast_image_resize::ResizeError),
     #[error("Resizing Error")]

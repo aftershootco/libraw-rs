@@ -5,6 +5,7 @@ resolver = "2"
 members = [
     "libraw-rs",
     "libraw-sys",
+    "raw-rendering",
     "tests",
 ]
 
