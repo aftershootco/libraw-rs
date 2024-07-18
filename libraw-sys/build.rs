@@ -110,28 +110,6 @@ fn vcpkg_install(out_dir: &Path) -> Result<String> {
     ))
 }
 
-fn apply_patch(libraw_dir: impl AsRef<Path>) -> Result<()> {
-    let mut command = Command::new("git");
-    command.current_dir(&libraw_dir);
-    command.arg("apply");
-    command.arg(format!(
-        "{}/Add_IntoPix_decoder_and_other_fixes.patch",
-        env!("CARGO_MANIFEST_DIR")
-    ));
-    command.arg("--ignore-whitespace");
-
-    if let Ok(output) = command.output() {
-        println!(
-            "--- stdout ---\n{}\n\n--- stderr ---\n{}\n\n",
-            String::from_utf8(output.stdout).unwrap(),
-            String::from_utf8(output.stderr).unwrap()
-        );
-        Ok(())
-    } else {
-        Err("git apply failed".into())
-    }
-}
-
 fn main() -> Result<()> {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=LIBRAW_DIR");
@@ -164,8 +142,6 @@ fn main() -> Result<()> {
     );
 
     let vcpkg_include_dir = vcpkg_install(out_dir)?;
-
-    apply_patch(&libraw_dir)?;
 
     build(out_dir, &libraw_dir, &vcpkg_include_dir)?;
 
@@ -235,6 +211,7 @@ fn build(
         "src/libraw_c_api.cpp",
         "src/libraw_datastream.cpp",
         "src/metadata/adobepano.cpp",
+        "src/metadata/callbacks.cpp",
         "src/metadata/canon.cpp",
         "src/metadata/ciff.cpp",
         "src/metadata/cr3_parser.cpp",
