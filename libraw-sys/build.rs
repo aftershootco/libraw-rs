@@ -13,6 +13,7 @@ fn get_vcpkg_triplet(target: &str) -> &'static str {
         "x86_64-pc-windows-msvc" => "x64-windows-static-md",
         "x86_64-pc-windows-gnu" => "x64-mingw-static",
         "wasm32-unknown-emscripten" => "wasm32-emscripten",
+        "aarch64-pc-windows-msvc" => "arm64-windows-static-md",
         &_ => panic!("Unsupported target {}", target),
     }
 }
