@@ -1,9 +1,9 @@
 use core::slice;
 
 use crate::{traits::LRString, Processor};
+use libc::c_void;
 use libraw_sys::{
-    libraw_colordata_t, libraw_dng_color_t, libraw_dng_levels_t, libraw_image_sizes_t,
-    libraw_imgother_t, libraw_iparams_t, libraw_raw_inset_crop_t, libraw_rawdata_t,
+    libraw_colordata_t, libraw_data_t, libraw_dng_color_t, libraw_dng_levels_t, libraw_image_sizes_t, libraw_imgother_t, libraw_iparams_t, libraw_raw_inset_crop_t, libraw_rawdata_t
 };
 
 use serde::{Deserialize, Serialize};
@@ -17,6 +17,7 @@ pub struct LibrawIparams {
     pub raw_count: u32,
     pub dng_version: u32,
     pub colors: i32,
+    pub xtrans: [[i8; 6]; 6],
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -130,6 +131,7 @@ pub enum LibrawRawdata {
     Float4Image(Vec<[f32; 4]>),
     None,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawData {
     pub sizes: Option<LibrawImageSizes>,
@@ -169,6 +171,7 @@ impl From<&libraw_iparams_t> for LibrawIparams {
             raw_count: iparams.raw_count,
             dng_version: iparams.dng_version,
             colors: iparams.colors,
+            xtrans: iparams.xtrans,
         }
     }
 }
