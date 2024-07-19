@@ -747,6 +747,7 @@ dependencies = [
  "libc",
  "libraw-sys",
  "semver",
+ "serde",
  "thiserror",
  "turbojpeg",
  "widestring",
@@ -1011,6 +1012,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fa76aaf39101c457836aec0ce2316dbdc3ab723cdda1c6bd4e6ad4208acaca7"
 dependencies = [
  "proc-macro2",
+]
+
+[[package]]
+name = "raw_rendering"
+version = "1.0.0-rc.2"
+dependencies = [
+ "libraw_r",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

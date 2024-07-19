@@ -5,6 +5,7 @@ resolver = "2"
 members = [
     "libraw-rs",
     "libraw-sys",
+    "raw-rendering",
     "tests",
 ]
 
@@ -21,3 +22,8 @@ rpath = false
 
 [profile.bench]
 debug = true
+
+
+[workspace.dependencies]
+serde = { version = "1.0.204", features = ["derive"] }
+serde_json = { version = "1.0.120" }

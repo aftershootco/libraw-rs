@@ -6,12 +6,15 @@ pub mod defaults;
 pub mod exif;
 pub mod orientation;
 pub mod progress;
+pub mod structs;
 pub mod traits;
 
 use alloc::sync::Arc;
 pub use error::LibrawError;
 #[cfg(feature = "jpeg")]
 use fast_image_resize as fr;
+#[cfg(feature = "jpeg")]
+use fr::{PixelType, ResizeOptions};
 #[cfg(feature = "jpeg")]
 use image::ColorType;
 
@@ -92,6 +95,10 @@ impl Processor {
     pub fn unpack_thumb_ex(&mut self, index: libc::c_int) -> Result<(), LibrawError> {
         LibrawError::check(unsafe { sys::libraw_unpack_thumb_ex(self.inner.as_ptr(), index) })?;
         Ok(())
+    }
+
+    pub fn inner(&self) -> &sys::libraw_data_t {
+        unsafe { &self.inner.as_ref() }
     }
 
     /// Drop the processor and get a handle to the inner type
@@ -264,6 +271,11 @@ impl Processor {
         let imgother = unsafe { sys::libraw_get_imgother(self.inner.as_ptr()) };
         assert!(!imgother.is_null());
         unsafe { &*imgother }
+    }
+
+    /// Get the rawdata for image from libraw
+    pub fn rawdata(&'_ self) -> &'_ sys::libraw_rawdata_t {
+        unsafe { &self.inner.as_ref().rawdata }
     }
 
     /// Get the thumbnail struct from libraw_data_t
