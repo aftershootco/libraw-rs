@@ -236,6 +236,7 @@ fn build(
         "src/metadata/samsung.cpp",
         "src/metadata/sony.cpp",
         "src/metadata/tiff.cpp",
+        "src/metadata/dcp_tiff.cpp",
         "src/postprocessing/aspect_ratio.cpp",
         "src/postprocessing/dcraw_process.cpp",
         "src/postprocessing/mem_image.cpp",
