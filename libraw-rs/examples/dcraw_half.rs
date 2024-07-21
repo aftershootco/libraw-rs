@@ -15,8 +15,13 @@ pub fn main() -> anyhow::Result<()> {
         );
         p.unpack()?;
         p.dcraw_process()?;
-        p.dcraw_ppm_tiff_writer(Path::new(&arg).with_extension("ppm"))?;
-        println!("Writing to {arg}.ppm");
+        #[cfg(not(feature = "jpeg"))]
+        {
+            p.dcraw_ppm_tiff_writer(Path::new(&arg).with_extension("ppm"))?;
+            println!("Writing to {arg}.ppm");
+        }
+        #[cfg(feature = "jpeg")]
+        p.to_jpeg_no_rotation(80, None)?;
     }
     Ok(())
 }
