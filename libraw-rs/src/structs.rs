@@ -3,7 +3,9 @@ use core::slice;
 use crate::{traits::LRString, Processor};
 use libc::c_void;
 use libraw_sys::{
-    libraw_colordata_t, libraw_data_t, libraw_dng_color_t, libraw_dng_levels_t, libraw_image_sizes_t, libraw_imgother_t, libraw_iparams_t, libraw_raw_inset_crop_t, libraw_rawdata_t
+    libraw_colordata_t, libraw_data_t, libraw_dng_color_t, libraw_dng_levels_t,
+    libraw_image_sizes_t, libraw_imgother_t, libraw_iparams_t, libraw_raw_inset_crop_t,
+    libraw_rawdata_t,
 };
 
 use serde::{Deserialize, Serialize};

@@ -484,11 +484,27 @@ impl Processor {
 
         match ImageFormat::from(processed.type_) {
             ImageFormat::Bitmap => {
-                let (colortype, pixelformat) = match (processed.colors, processed.bits) {
-                    (3, 8) => (image::ColorType::Rgb8, turbojpeg::PixelFormat::RGB),
-                    (3, 16) => (image::ColorType::Rgb16, turbojpeg::PixelFormat::RGB),
-                    (1, 8) => (image::ColorType::L8, turbojpeg::PixelFormat::GRAY),
-                    (1, 16) => (image::ColorType::L16, turbojpeg::PixelFormat::GRAY),
+                let (colortype, pixelformat, subsamp) = match (processed.colors, processed.bits) {
+                    (3, 8) => (
+                        image::ColorType::Rgb8,
+                        turbojpeg::PixelFormat::RGB,
+                        turbojpeg::Subsamp::Sub2x2,
+                    ),
+                    (3, 16) => (
+                        image::ColorType::Rgb16,
+                        turbojpeg::PixelFormat::RGB,
+                        turbojpeg::Subsamp::Sub2x2,
+                    ),
+                    (1, 8) => (
+                        image::ColorType::L8,
+                        turbojpeg::PixelFormat::GRAY,
+                        turbojpeg::Subsamp::Gray,
+                    ),
+                    (1, 16) => (
+                        image::ColorType::L16,
+                        turbojpeg::PixelFormat::GRAY,
+                        turbojpeg::Subsamp::Gray,
+                    ),
                     _ => return Err(LibrawError::InvalidColor(processed.bits)),
                 };
 
@@ -510,10 +526,10 @@ impl Processor {
                         pixels: img.buffer(),
                         width: w as usize,
                         height: h as usize,
-                        pitch: w as usize * 3,
+                        pitch: w as usize * processed.colors as usize,
                         format: pixelformat,
                     };
-                    jpeg = turbojpeg::compress(img, quality as i32, turbojpeg::Subsamp::Sub2x2)
+                    jpeg = turbojpeg::compress(img, quality as i32, subsamp)
                         .map_err(|_| LibrawError::ResizingError)?
                         .to_vec();
                 } else {
@@ -521,10 +537,10 @@ impl Processor {
                         pixels: _processed.as_slice(),
                         width: processed.width as usize,
                         height: processed.height as usize,
-                        pitch: processed.width as usize * 3,
+                        pitch: processed.width as usize * processed.colors as usize,
                         format: pixelformat,
                     };
-                    jpeg = turbojpeg::compress(img, quality as i32, turbojpeg::Subsamp::Sub2x2)
+                    jpeg = turbojpeg::compress(img, quality as i32, subsamp)
                         .map_err(|_| LibrawError::ResizingError)?
                         .to_vec();
                 };
