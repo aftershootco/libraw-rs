@@ -3,7 +3,9 @@ use core::slice;
 use crate::{traits::LRString, Processor};
 use libc::c_void;
 use libraw_sys::{
-    libraw_colordata_t, libraw_data_t, libraw_dng_color_t, libraw_dng_levels_t, libraw_image_sizes_t, libraw_imgother_t, libraw_iparams_t, libraw_raw_inset_crop_t, libraw_rawdata_t
+    libraw_colordata_t, libraw_data_t, libraw_dng_color_t, libraw_dng_levels_t,
+    libraw_image_sizes_t, libraw_imgother_t, libraw_iparams_t, libraw_raw_inset_crop_t,
+    libraw_rawdata_t,
 };
 
 use serde::{Deserialize, Serialize};
@@ -123,12 +125,12 @@ pub struct LibrawThumbnailList {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum LibrawRawdata {
-    RawImage(Vec<u16>),
-    Color4Image(Vec<[u16; 4]>),
-    Color3Image(Vec<[u16; 3]>),
-    FloatImage(Vec<f32>),
-    Float3Image(Vec<[f32; 3]>),
-    Float4Image(Vec<[f32; 4]>),
+    RawImage(Option<Vec<f32>>),
+    Color4Image(Option<Vec<[f32; 4]>>),
+    Color3Image(Option<Vec<[f32; 3]>>),
+    FloatImage(Option<Vec<f32>>),
+    Float3Image(Option<Vec<[f32; 3]>>),
+    Float4Image(Option<Vec<[f32; 4]>>),
     None,
 }
 
@@ -267,63 +269,75 @@ impl From<&libraw_rawdata_t> for LibrawRawdata {
     fn from(value: &libraw_rawdata_t) -> Self {
         if !value.raw_image.is_null() {
             unsafe {
-                LibrawRawdata::RawImage(
+                LibrawRawdata::RawImage(Some(
                     slice::from_raw_parts(
                         value.raw_image,
                         value.sizes.raw_width as usize * value.sizes.raw_height as usize,
                     )
-                    .to_owned(),
-                )
+                    .iter()
+                    .map(|x| *x as f32)
+                    .collect(),
+                ))
             }
         } else if !value.color3_image.is_null() {
             unsafe {
-                LibrawRawdata::Color3Image(
+                LibrawRawdata::Color3Image(Some(
                     slice::from_raw_parts(
                         value.color3_image,
                         value.sizes.raw_width as usize * value.sizes.raw_height as usize * 3,
                     )
-                    .to_vec(),
-                )
+                    .iter()
+                    .map(|x| {
+                        let y = [x[0] as f32, x[1] as f32, x[2] as f32];
+                        y
+                    })
+                    .collect(),
+                ))
             }
         } else if !value.color4_image.is_null() {
             unsafe {
-                LibrawRawdata::Color4Image(
+                LibrawRawdata::Color4Image(Some(
                     slice::from_raw_parts(
                         value.color4_image,
                         value.sizes.raw_width as usize * value.sizes.raw_height as usize * 4,
                     )
-                    .to_vec(),
-                )
+                    .iter()
+                    .map(|x| {
+                        let y = [x[0] as f32, x[1] as f32, x[2] as f32, x[3] as f32];
+                        y
+                    })
+                    .collect(),
+                ))
             }
         } else if !value.float_image.is_null() {
             unsafe {
-                LibrawRawdata::FloatImage(
+                LibrawRawdata::FloatImage(Some(
                     slice::from_raw_parts(
                         value.float_image,
                         value.sizes.raw_width as usize * value.sizes.raw_height as usize,
                     )
                     .to_owned(),
-                )
+                ))
             }
         } else if !value.float3_image.is_null() {
             unsafe {
-                LibrawRawdata::Float3Image(
+                LibrawRawdata::Float3Image(Some(
                     slice::from_raw_parts(
                         value.float3_image,
                         value.sizes.raw_width as usize * value.sizes.raw_height as usize * 3,
                     )
                     .to_vec(),
-                )
+                ))
             }
         } else if !value.float4_image.is_null() {
             unsafe {
-                LibrawRawdata::Float4Image(
+                LibrawRawdata::Float4Image(Some(
                     slice::from_raw_parts(
                         value.float4_image,
                         value.sizes.raw_width as usize * value.sizes.raw_height as usize * 4,
                     )
                     .to_vec(),
-                )
+                ))
             }
         } else {
             LibrawRawdata::None
