@@ -124,14 +124,19 @@ pub struct LibrawThumbnail {}
 pub struct LibrawThumbnailList {}
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum LibrawRawdata {
-    RawImage(Option<Vec<f32>>),
-    Color4Image(Option<Vec<[f32; 4]>>),
-    Color3Image(Option<Vec<[f32; 3]>>),
-    FloatImage(Option<Vec<f32>>),
-    Float3Image(Option<Vec<[f32; 3]>>),
-    Float4Image(Option<Vec<[f32; 4]>>),
-    None,
+pub struct LibrawRawdata {
+    pub data_type: Option<LibrawRawDataType>,
+    pub data: Option<Vec<f32>>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum LibrawRawDataType {
+    RawImage,
+    Color4Image,
+    Color3Image,
+    FloatImage,
+    Float3Image,
+    Float4Image,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -267,80 +272,81 @@ impl From<&libraw_imgother_t> for LibrawImgother {
 
 impl From<&libraw_rawdata_t> for LibrawRawdata {
     fn from(value: &libraw_rawdata_t) -> Self {
-        if !value.raw_image.is_null() {
-            unsafe {
-                LibrawRawdata::RawImage(Some(
+        let (data_type, data) = if !value.raw_image.is_null() {
+            let data_type = LibrawRawDataType::RawImage;
+            let data = unsafe {
                     slice::from_raw_parts(
                         value.raw_image,
                         value.sizes.raw_width as usize * value.sizes.raw_height as usize,
                     )
                     .iter()
                     .map(|x| *x as f32)
-                    .collect(),
-                ))
-            }
+                    .collect()
+            };
+            (data_type, data)
         } else if !value.color3_image.is_null() {
-            unsafe {
-                LibrawRawdata::Color3Image(Some(
+            let data_type = LibrawRawDataType::Color3Image;
+            let data = unsafe {
                     slice::from_raw_parts(
                         value.color3_image,
                         value.sizes.raw_width as usize * value.sizes.raw_height as usize * 3,
                     )
                     .iter()
-                    .map(|x| {
-                        let y = [x[0] as f32, x[1] as f32, x[2] as f32];
-                        y
-                    })
-                    .collect(),
-                ))
-            }
+                    .flatten()
+                    .map(|x| *x as f32)
+                    .collect()
+            };
+            (data_type, data)
         } else if !value.color4_image.is_null() {
-            unsafe {
-                LibrawRawdata::Color4Image(Some(
+            let data_type = LibrawRawDataType::Color4Image;
+            let data = unsafe {
                     slice::from_raw_parts(
                         value.color4_image,
                         value.sizes.raw_width as usize * value.sizes.raw_height as usize * 4,
                     )
                     .iter()
-                    .map(|x| {
-                        let y = [x[0] as f32, x[1] as f32, x[2] as f32, x[3] as f32];
-                        y
-                    })
-                    .collect(),
-                ))
-            }
+                    .flatten()
+                    .map(|x| *x as f32)
+                    .collect()
+            };
+            (data_type, data)
         } else if !value.float_image.is_null() {
-            unsafe {
-                LibrawRawdata::FloatImage(Some(
+            let data_type = LibrawRawDataType::FloatImage;
+            let data = unsafe {
                     slice::from_raw_parts(
                         value.float_image,
                         value.sizes.raw_width as usize * value.sizes.raw_height as usize,
-                    )
-                    .to_owned(),
-                ))
-            }
+                    ).to_owned()
+            };
+            (data_type, data)
         } else if !value.float3_image.is_null() {
-            unsafe {
-                LibrawRawdata::Float3Image(Some(
+            let data_type = LibrawRawDataType::Float3Image;
+            let data = unsafe {
                     slice::from_raw_parts(
                         value.float3_image,
                         value.sizes.raw_width as usize * value.sizes.raw_height as usize * 3,
-                    )
-                    .to_vec(),
-                ))
-            }
+                    ).into_iter().map(|x| *x).flatten().collect()
+            };
+            (data_type, data)
         } else if !value.float4_image.is_null() {
-            unsafe {
-                LibrawRawdata::Float4Image(Some(
+            let data_type = LibrawRawDataType::Float4Image;
+            let data = unsafe {
                     slice::from_raw_parts(
                         value.float4_image,
                         value.sizes.raw_width as usize * value.sizes.raw_height as usize * 4,
-                    )
-                    .to_vec(),
-                ))
-            }
+                    ).into_iter().map(|x| *x).flatten().collect()
+            };
+            (data_type, data)
         } else {
-            LibrawRawdata::None
+            return LibrawRawdata {
+                data_type: None,
+                data: None,
+            }
+        };
+
+        LibrawRawdata {
+            data_type: Some(data_type),
+            data: Some(data),
         }
     }
 }
