@@ -54,11 +54,11 @@
               pkgs.darwin.apple_sdk.frameworks.Security
               pkgs.darwin.apple_sdk.frameworks.CoreServices
             ];
-          nativeBuildInputs = with pkgs; [cmake] ++ lib.optionals pkgs.stdenv.isDarwin [libiconv]; # Intputs required for the HOST system
+          nativeBuildInputs = with pkgs; [cmake rustPlatform.bindgenHook] ++ lib.optionals pkgs.stdenv.isDarwin [libiconv]; # Intputs required for the HOST system
           # This is often requird for any ffi based packages that use bindgen
           # LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
           # For using pkg-config that many libraries require
-          # PKG_CONFIG_PATH = lib.makeSearchPath "lib/pkgconfig" (with pkgs;[ openssl.dev zlib.dev ]);
+          PKG_CONFIG_PATH = lib.makeSearchPath "lib/pkgconfig" (with pkgs; [openssl.dev zlib.dev]);
         };
         cargoArtefacts = craneLib.buildDepsOnly commonArgs;
 

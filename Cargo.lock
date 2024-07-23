@@ -746,6 +746,7 @@ dependencies = [
  "img-parts",
  "libc",
  "libraw-sys",
+ "rayon",
  "semver",
  "serde",
  "thiserror",
