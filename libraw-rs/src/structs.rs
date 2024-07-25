@@ -369,3 +369,24 @@ impl From<Processor> for LibrawData {
         }
     }
 }
+
+impl From<&Processor> for LibrawData {
+    fn from(processor: &Processor) -> Self {
+        Self {
+            sizes: Some(processor.sizes().into()),
+            idata: Some(processor.idata().into()),
+            lens: None,
+            makernotes: None,
+            shootinginfo: None,
+            params: None,
+            rawparams: None,
+            progress_flags: None,
+            process_warnings: None,
+            color: Some(processor.color().into()),
+            other: Some(processor.imgother().into()),
+            thumbnail: None,
+            thumbs_list: None,
+            rawdata: Some(processor.rawdata().into()),
+        }
+    }
+}
