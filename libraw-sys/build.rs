@@ -54,7 +54,7 @@ fn vcpkg_install(out_dir: &Path) -> Result<String> {
     let vcpkg_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("vcpkg");
     if !vcpkg_path.exists() {
         let url = "https://github.com/microsoft/vcpkg";
-        git2::Repository::clone(url, &vcpkg_path)?;
+        Command::new("git").arg("clone").arg(url).output().unwrap();
     }
 
     let vcpkg_binary = {
