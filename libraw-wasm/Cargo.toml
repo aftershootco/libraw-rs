@@ -1,0 +1,14 @@
+[package]
+name = "libraw_wasm"
+edition = "2021"
+version.workspace = true
+
+[dependencies]
+image = { version = "0.23.2", default-features = false, features = ["jpeg"] }
+libc = { version = "0.2.135" }
+libraw-sys = { path = "../libraw-sys" }
+
+[profile.release]
+strip = true
+lto = true
+

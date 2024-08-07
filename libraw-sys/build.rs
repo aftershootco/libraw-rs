@@ -267,6 +267,22 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
 
 #[cfg(feature = "bindgen")]
 fn bindings(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> {
+    let mut args = Vec::new();
+    let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+    if os == "emscripten" {
+        args.append(&mut vec![
+            "-fvisibility=default",
+            "--target=wasm32-emscripten",
+        ]);
+
+        #[cfg(unix)]
+        args.append(&mut vec![
+            "-I/lib64/emscripten/system/include/",
+            "-I/lib64/emscripten/system/lib/libc/musl/arch/emscripten",
+            "-I/lib64/emscripten/system/lib/libc/musl/include",
+        ]);
+    }
+
     let bindings = bindgen::Builder::default()
         .header(
             libraw_dir
@@ -275,6 +291,7 @@ fn bindings(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<(
                 .join("libraw.h")
                 .to_string_lossy(),
         )
+        .clang_args(args)
         .use_core()
         .ctypes_prefix("libc")
         .generate_comments(true)
