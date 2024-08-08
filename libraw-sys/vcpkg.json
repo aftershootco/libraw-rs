@@ -3,10 +3,6 @@
   "name": "libraw",
   "dependencies": [
     "dng-sdk",
-    {
-      "name": "rawspeed",
-      "platform": "!emscripten"
-    },
     "zlib",
     "libpng",
     {

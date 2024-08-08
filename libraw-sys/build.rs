@@ -1,3 +1,4 @@
+use core::panic;
 use std::ffi::OsStr;
 use std::io::{BufRead, BufReader, Stderr, Stdout};
 use std::path::{Component, Path, PathBuf};
@@ -18,14 +19,7 @@ fn get_vcpkg_triplet(target: &str) -> &'static str {
     }
 }
 
-fn vcpkg_install_command(vcpkg_root: &PathBuf, vcpkg_triplet: &str, manifest_dir: &str) -> Command {
-    let mut x = vcpkg_root.clone();
-    if cfg!(windows) {
-        x.push("vcpkg.exe");
-    } else {
-        x.push("vcpkg")
-    }
-
+fn vcpkg_install_command(vcpkg_binary: &PathBuf, vcpkg_triplet: &str, manifest_dir: &str) -> Command {
     #[cfg(target_family = "windows")]
     {
         if let Err(_) = std::env::var("GIT_SSH") {
@@ -42,19 +36,25 @@ fn vcpkg_install_command(vcpkg_root: &PathBuf, vcpkg_triplet: &str, manifest_dir
             }
         }
     }
-    let mut command = Command::new(x);
-    command.current_dir(&manifest_dir);
+    let mut command = Command::new(vcpkg_binary);
+    command.arg("--vcpkg-root");
+    command.arg(vcpkg_binary.parent().unwrap());
     command.arg("--triplet");
     command.arg(vcpkg_triplet);
     command.arg("install");
+
+    command.current_dir(&manifest_dir);
     command
 }
 
 fn vcpkg_install(out_dir: &Path) -> Result<String> {
-    let vcpkg_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("vcpkg");
+    let vcpkg_path = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("vcpkg");
+
     if !vcpkg_path.exists() {
         let url = "https://github.com/microsoft/vcpkg";
-        Command::new("git").arg("clone").arg(url).output().unwrap();
+        let mut command = Command::new("git");
+        command.current_dir(std::env::var("OUT_DIR").unwrap());
+        command.arg("clone").arg(url).output().unwrap();
     }
 
     let vcpkg_binary = {
@@ -65,16 +65,21 @@ fn vcpkg_install(out_dir: &Path) -> Result<String> {
         }
     };
 
-    if !vcpkg_path.join(vcpkg_binary).exists() {
+    if !vcpkg_path.join(&vcpkg_binary).exists() {
         let mut install_script = PathBuf::from("bootstrap-vcpkg");
+
         #[cfg(target_family = "windows")]
         install_script.set_extension("bat");
+
         #[cfg(target_family = "unix")]
         install_script.set_extension("sh");
+
         let bootstrap_path = vcpkg_path.join(install_script);
+
         if !bootstrap_path.exists() {
             eprintln!("Cannot find boot script. Make sure project vcpkg folder is not empty.")
         }
+
         Command::new(bootstrap_path)
             .arg("-disableMetrics")
             .output()
@@ -83,7 +88,7 @@ fn vcpkg_install(out_dir: &Path) -> Result<String> {
 
     let target = std::env::var("TARGET").unwrap();
     let triplet = get_vcpkg_triplet(&target);
-    let mut command = vcpkg_install_command(&vcpkg_path, triplet, env!("CARGO_MANIFEST_DIR"));
+    let mut command = vcpkg_install_command(&vcpkg_path.join(&vcpkg_binary), triplet, env!("CARGO_MANIFEST_DIR"));
     command.arg(&format!(
         "--x-install-root={}/vcpkg_installed",
         out_dir.display()
@@ -208,7 +213,7 @@ fn build(
         "src/demosaic/misc_demosaic.cpp",
         "src/demosaic/xtrans_demosaic.cpp",
         "src/integration/dngsdk_glue.cpp",
-        "src/integration/rawspeed_glue.cpp",
+        //"src/integration/rawspeed_glue.cpp",
         "src/libraw_c_api.cpp",
         "src/libraw_datastream.cpp",
         "src/metadata/adobepano.cpp",
@@ -271,18 +276,18 @@ fn build(
     ];
 
     // Don't set if emscripten as rawspeed doesn't build on wasm yet
-    #[cfg(any(
-        all(
-            not(target_arch = "wasm32"),
-            not(target_os = "unknown"),
-            feature = "openmp"
-        ),
-        target_os = "windows"
-    ))]
-    {
-        sources.push("RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp");
-        sources.push("../src/rawspeed_cameras.cpp");
-    }
+    //#[cfg(any(
+    //    all(
+    //        not(target_arch = "wasm32"),
+    //        not(target_os = "unknown"),
+    //        feature = "openmp"
+    //    ),
+    //    target_os = "windows"
+    //))]
+    //{
+    //    sources.push("RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp");
+    //    sources.push("../src/rawspeed_cameras.cpp");
+    //}
 
     let sources = sources
         .iter()
@@ -301,17 +306,17 @@ fn build(
 
     libraw.include(vcpkg_include_dir);
     libraw.include(format!("{}/dng_sdk", vcpkg_include_dir));
-    libraw.include(format!("{}/rawspeed", vcpkg_include_dir));
-    libraw.include(format!("{}/rawspeed/external", vcpkg_include_dir));
+    //libraw.include(format!("{}/rawspeed", vcpkg_include_dir));
+    //libraw.include(format!("{}/rawspeed/external", vcpkg_include_dir));
     libraw.include(format!("{}/IpxCpuCodec", vcpkg_include_dir));
-    libraw.include(format!(
-        "{}/RawSpeed3/rawspeed3_c_api",
-        libraw_dir.as_ref().display()
-    ));
-    libraw.include(format!(
-        "{}/RawSpeed3/rawspeed3_c_api",
-        libraw_dir.as_ref().display()
-    ));
+    //libraw.include(format!(
+    //    "{}/RawSpeed3/rawspeed3_c_api",
+    //    libraw_dir.as_ref().display()
+    //));
+    //libraw.include(format!(
+    //    "{}/RawSpeed3/rawspeed3_c_api",
+    //    libraw_dir.as_ref().display()
+    //));
 
     #[cfg(unix)]
     {
@@ -375,18 +380,18 @@ fn build(
     libraw.flag("-DUSE_DNGSDK");
 
     // Don't set if emscripten as rawspeed doesn't build on wasm yet
-    #[cfg(any(
-        all(
-            not(target_arch = "wasm32"),
-            not(target_os = "unknown"),
-            feature = "openmp"
-        ),
-        target_os = "windows"
-    ))]
-    {
-        libraw.flag("-DRAWSPEED_BUILDLIB");
-        libraw.flag("-DUSE_RAWSPEED3");
-    }
+    //#[cfg(any(
+    //    all(
+    //        not(target_arch = "wasm32"),
+    //        not(target_os = "unknown"),
+    //        feature = "openmp"
+    //    ),
+    //    target_os = "windows"
+    //))]
+    //{
+    //    libraw.flag("-DRAWSPEED_BUILDLIB");
+    //    libraw.flag("-DUSE_RAWSPEED3");
+    //}
 
     libraw.flag("-DUSE_X3FTOOLS");
 
@@ -417,7 +422,7 @@ fn build(
         ),
         target_os = "windows"
     ))]
-    println!("cargo:rustc-link-lib=static=rawspeed");
+    //println!("cargo:rustc-link-lib=static=rawspeed");
     println!("cargo:rustc-link-lib=static=dng");
     println!("cargo:rustc-link-lib=static=jxl_threads");
     println!("cargo:rustc-link-lib=static=jxl");
