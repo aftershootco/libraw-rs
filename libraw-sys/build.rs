@@ -6,8 +6,9 @@ use std::process::{Command, Stdio};
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
-fn get_vcpkg_triplet(target: &str) -> &'static str {
-    match target {
+fn get_vcpkg_triplet() -> &'static str {
+    let target = std::env::var("TARGET").unwrap();
+    match target.as_str() {
         "x86_64-apple-darwin" => "x64-osx",
         "aarch64-apple-darwin" => "arm64-osx",
         "x86_64-unknown-linux-gnu" => "x64-linux",
@@ -19,7 +20,9 @@ fn get_vcpkg_triplet(target: &str) -> &'static str {
     }
 }
 
-fn vcpkg_install_command(vcpkg_binary: &PathBuf, vcpkg_triplet: &str, manifest_dir: &str) -> Command {
+fn vcpkg_install_command(vcpkg_binary: &PathBuf, vcpkg_triplet: &str) -> Command {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+
     #[cfg(target_family = "windows")]
     {
         if let Err(_) = std::env::var("GIT_SSH") {
@@ -36,6 +39,7 @@ fn vcpkg_install_command(vcpkg_binary: &PathBuf, vcpkg_triplet: &str, manifest_d
             }
         }
     }
+
     let mut command = Command::new(vcpkg_binary);
     command.arg("--vcpkg-root");
     command.arg(vcpkg_binary.parent().unwrap());
@@ -47,23 +51,21 @@ fn vcpkg_install_command(vcpkg_binary: &PathBuf, vcpkg_triplet: &str, manifest_d
     command
 }
 
-fn vcpkg_install(out_dir: &Path) -> Result<String> {
-    let vcpkg_path = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("vcpkg");
+fn vcpkg_install(out_dir: impl AsRef<Path>) -> Result<String> {
+    let out_dir = out_dir.as_ref().to_path_buf();
+    let vcpkg_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("vcpkg");
 
     if !vcpkg_path.exists() {
         let url = "https://github.com/microsoft/vcpkg";
         let mut command = Command::new("git");
-        command.current_dir(std::env::var("OUT_DIR").unwrap());
+        command.current_dir(&vcpkg_path.parent().unwrap());
         command.arg("clone").arg(url).output().unwrap();
     }
 
-    let vcpkg_binary = {
-        if cfg!(target_family = "windows") {
-            PathBuf::from("vcpkg").with_extension("exe")
-        } else {
-            PathBuf::from("vcpkg")
-        }
-    };
+    let vcpkg_binary = PathBuf::from("vcpkg");
+
+    #[cfg(target_family = "windows")]
+    let vcpkg_binary = vcpkg_binary.with_extension("exe");
 
     if !vcpkg_path.join(&vcpkg_binary).exists() {
         let mut install_script = PathBuf::from("bootstrap-vcpkg");
@@ -86,12 +88,11 @@ fn vcpkg_install(out_dir: &Path) -> Result<String> {
             .unwrap();
     }
 
-    let target = std::env::var("TARGET").unwrap();
-    let triplet = get_vcpkg_triplet(&target);
-    let mut command = vcpkg_install_command(&vcpkg_path.join(&vcpkg_binary), triplet, env!("CARGO_MANIFEST_DIR"));
+    let triplet = get_vcpkg_triplet();
+    let mut command = vcpkg_install_command(&vcpkg_path.join(&vcpkg_binary), triplet);
     command.arg(&format!(
         "--x-install-root={}/vcpkg_installed",
-        out_dir.display()
+        &out_dir.display()
     ));
     command.stdin(Stdio::inherit());
     command.stdout(Stdio::inherit());
@@ -105,13 +106,13 @@ fn vcpkg_install(out_dir: &Path) -> Result<String> {
 
     println!(
         "cargo:rustc-link-search=native={}/vcpkg_installed/{}/lib",
-        out_dir.display(),
+        &out_dir.display(),
         triplet
     );
 
     Ok(format!(
         "{}/vcpkg_installed/{}/include",
-        out_dir.display(),
+        &out_dir.display(),
         triplet
     ))
 }
