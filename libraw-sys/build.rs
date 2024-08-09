@@ -20,11 +20,14 @@ fn get_vcpkg_triplet() -> &'static str {
     }
 }
 
-fn vcpkg_install_command(vcpkg_binary: &PathBuf, vcpkg_triplet: &str) -> Command {
+fn vcpkg_install_command(vcpkg_path: impl AsRef<Path>, vcpkg_triplet: &str) -> Command {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
 
-    #[cfg(target_family = "windows")]
+    let vcpkg_binary = vcpkg_path.as_ref().to_path_buf().join("vcpkg");
+
+    #[cfg(windows)]
     {
+        let vcpkg_binary = vcpkg_binary.with_extension("exe");
         if let Err(_) = std::env::var("GIT_SSH") {
             let default_ssh = PathBuf::from("C:/Windows/System32/OpenSSH/ssh.exe");
             eprintln!(
@@ -41,8 +44,6 @@ fn vcpkg_install_command(vcpkg_binary: &PathBuf, vcpkg_triplet: &str) -> Command
     }
 
     let mut command = Command::new(vcpkg_binary);
-    command.arg("--vcpkg-root");
-    command.arg(vcpkg_binary.parent().unwrap());
     command.arg("--triplet");
     command.arg(vcpkg_triplet);
     command.arg("install");
@@ -51,45 +52,43 @@ fn vcpkg_install_command(vcpkg_binary: &PathBuf, vcpkg_triplet: &str) -> Command
     command
 }
 
+fn guess_vcpkg_dir(base: impl AsRef<Path>) -> Option<PathBuf> {
+    let base = base.as_ref().to_path_buf();
+    if let Some(index) = base
+        .components()
+        .position(|c| c == Component::Normal(OsStr::new("target")))
+    {
+        let guess = base
+            .components()
+            .take(index + 1)
+            .collect::<PathBuf>()
+            .join("vcpkg");
+
+        if guess.read_dir().ok()?.filter_map(|p| p.ok()).any(|p| {
+            p.path()
+                .file_name()
+                .map(|f| f == ".vcpkg-root")
+                .unwrap_or_default()
+        }) {
+            Some(guess)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
 fn vcpkg_install(out_dir: impl AsRef<Path>) -> Result<String> {
     let out_dir = out_dir.as_ref().to_path_buf();
-    let vcpkg_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("vcpkg");
-
-    if !vcpkg_path.exists() {
-        let url = "https://github.com/microsoft/vcpkg";
-        let mut command = Command::new("git");
-        command.current_dir(&vcpkg_path.parent().unwrap());
-        command.arg("clone").arg(url).output().unwrap();
-    }
-
-    let vcpkg_binary = PathBuf::from("vcpkg");
-
-    #[cfg(target_family = "windows")]
-    let vcpkg_binary = vcpkg_binary.with_extension("exe");
-
-    if !vcpkg_path.join(&vcpkg_binary).exists() {
-        let mut install_script = PathBuf::from("bootstrap-vcpkg");
-
-        #[cfg(target_family = "windows")]
-        install_script.set_extension("bat");
-
-        #[cfg(target_family = "unix")]
-        install_script.set_extension("sh");
-
-        let bootstrap_path = vcpkg_path.join(install_script);
-
-        if !bootstrap_path.exists() {
-            eprintln!("Cannot find boot script. Make sure project vcpkg folder is not empty.")
-        }
-
-        Command::new(bootstrap_path)
-            .arg("-disableMetrics")
-            .output()
-            .unwrap();
-    }
+    let toolchain_dir = std::env::var("VCPKG_ROOT")
+        .map(|x| PathBuf::from(x))
+        .unwrap_or_else(|_| {
+            guess_vcpkg_dir(&out_dir).expect("Could not guess VCPKG_ROOT, please set it manually.")
+        });
 
     let triplet = get_vcpkg_triplet();
-    let mut command = vcpkg_install_command(&vcpkg_path.join(&vcpkg_binary), triplet);
+    let mut command = vcpkg_install_command(&toolchain_dir, triplet);
     command.arg(&format!(
         "--x-install-root={}/vcpkg_installed",
         &out_dir.display()
