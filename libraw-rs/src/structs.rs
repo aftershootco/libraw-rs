@@ -1,11 +1,9 @@
 use core::slice;
 
 use crate::{traits::LRString, Processor};
-use libc::c_void;
+
 use libraw_sys::{
-    libraw_colordata_t, libraw_data_t, libraw_dng_color_t, libraw_dng_levels_t,
-    libraw_image_sizes_t, libraw_imgother_t, libraw_iparams_t, libraw_raw_inset_crop_t,
-    libraw_rawdata_t,
+    libraw_canon_makernotes_t, libraw_colordata_t, libraw_data_t, libraw_dng_color_t, libraw_dng_levels_t, libraw_fuji_info_t, libraw_image_sizes_t, libraw_imgother_t, libraw_iparams_t, libraw_lensinfo_t, libraw_makernotes_t, libraw_nikonlens_t, libraw_raw_inset_crop_t, libraw_rawdata_t, NikonLensRadialDistortion, NikonLensVignetteCorrection
 };
 
 use serde::{Deserialize, Serialize};
@@ -48,10 +46,52 @@ pub struct LibrawRawInsetCrops {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct LibrawLensinfo {}
+pub struct LibrawLensinfo {
+    libraw_nikonlens: LibrawNikonlens,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct LibrawMakernotes {}
+pub struct LibrawNikonlens {
+    radial_distortion: NikonLensRadialdistortion,
+    vignette_correction: NikonLensVignettecorrection,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct NikonLensRadialdistortion {
+    pub version: String,
+    pub on: u8,
+    pub radial_distortion1: f32,
+    pub radial_distortion2: f32,
+    pub radial_distortion3: f32,
+    pub radial_distortion4: f32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct NikonLensVignettecorrection {
+    pub version: String,
+    pub vignette_correction1: f32,
+    pub vignette_correction2: f32,
+    pub vignette_correction3: f32,
+    pub vignette_correction4: f32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LibrawMakernotes {
+    libraw_fuji_info: LibrawFujiInfo,
+    libraw_canon_makernotes_t: LibrawCanonMakernotes,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LibrawCanonMakernotes {
+    focus_distance_lower: f32,
+    focus_distance_upper: f32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LibrawFujiInfo {
+    fuji_width: u16,
+    fuji_layout: u32,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawShootinginfo {}
@@ -86,6 +126,7 @@ pub struct LibrawDngLevels {
     pub asshotneutral: [f32; 4usize],
     pub baseline_exposure: f32,
     pub linear_response_limit: f32,
+    pub shadow_scale: f32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -101,6 +142,7 @@ pub struct LibrawColordata {
     pub dng_color: [LibrawDngColor; 2usize],
     pub as_shot_wb_applied: i32,
     pub dng_levels: LibrawDngLevels,
+    pub dng_profile: Option<Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -157,6 +199,59 @@ pub struct LibrawData {
     pub rawdata: Option<LibrawRawdata>,
 }
 
+impl From<&libraw_lensinfo_t> for LibrawLensinfo  {
+    fn from(data: &libraw_lensinfo_t) -> Self {
+        Self {
+            libraw_nikonlens: (&data.nikon).into(),
+        }
+    }
+}
+
+impl From<&libraw_nikonlens_t> for LibrawNikonlens {
+    fn from(data: &libraw_nikonlens_t) -> Self {
+        Self { radial_distortion: data.radial_distortion.into(), vignette_correction: data.vignette_distortion.into() }
+    }
+}
+
+impl From<NikonLensRadialDistortion> for NikonLensRadialdistortion {
+    fn from(data: NikonLensRadialDistortion) -> Self {
+        Self { version: data.version.as_ascii().into(), on: data.on, radial_distortion1: data.radial_distortion1, radial_distortion2: data.radial_distortion2, radial_distortion3: data.radial_distortion3, radial_distortion4: data.radial_distortion4 }
+    }
+}
+
+impl From<NikonLensVignetteCorrection> for NikonLensVignettecorrection {
+    fn from(data: NikonLensVignetteCorrection) -> Self {
+        Self { version: data.version.as_ascii().into(), vignette_correction1: data.vignette_correction1, vignette_correction2: data.vignette_correction2, vignette_correction3: data.vignette_correction3, vignette_correction4: data.vignette_correction4 }
+    }
+}
+
+impl From<&libraw_makernotes_t> for LibrawMakernotes {
+    fn from(data: &libraw_makernotes_t) -> Self {
+        Self {
+            libraw_fuji_info: data.fuji.into(),
+            libraw_canon_makernotes_t: data.canon.into(),
+        }
+    }
+}
+
+impl From<libraw_fuji_info_t> for LibrawFujiInfo {
+    fn from(data: libraw_fuji_info_t) -> Self {
+        Self {
+            fuji_width: data.fuji_width,
+            fuji_layout: data.fuji_layout,
+        }
+    }
+}
+
+impl From<libraw_canon_makernotes_t> for LibrawCanonMakernotes {
+    fn from(data: libraw_canon_makernotes_t) -> Self {
+        Self {
+            focus_distance_lower: data.focus_distance_lower,
+            focus_distance_upper: data.focus_distance_upper,
+        }
+    }
+}
+
 impl From<libraw_raw_inset_crop_t> for LibrawRawInsetCrops {
     fn from(value: libraw_raw_inset_crop_t) -> Self {
         Self {
@@ -211,6 +306,7 @@ impl From<libraw_dng_levels_t> for LibrawDngLevels {
             asshotneutral: value.asshotneutral,
             baseline_exposure: value.baseline_exposure,
             linear_response_limit: value.LinearResponseLimit,
+            shadow_scale: value.shadow_scale,
         }
     }
 }
@@ -229,6 +325,13 @@ impl From<&libraw_colordata_t> for LibrawColordata {
             dng_color: value.dng_color.map(|x| x.into()),
             as_shot_wb_applied: value.as_shot_wb_applied,
             dng_levels: value.dng_levels.into(),
+            dng_profile: unsafe {
+                if value.dng_profile.is_null() {
+                    None
+                } else {
+                    Some(std::slice::from_raw_parts(value.dng_profile as *const u8, value.dng_profile_len as usize).to_owned())
+                }
+            },
         }
     }
 }
@@ -337,7 +440,7 @@ impl From<Processor> for LibrawData {
             sizes: Some(processor.sizes().into()),
             idata: Some(processor.idata().into()),
             lens: None,
-            makernotes: None,
+            makernotes: Some(processor.makernotes().into()),
             shootinginfo: None,
             params: None,
             rawparams: None,
