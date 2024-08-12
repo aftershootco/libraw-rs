@@ -414,15 +414,16 @@ fn build(
     );
     println!("cargo:rustc-link-lib=static=raw_r");
 
-    #[cfg(any(
-        all(
-            not(target_arch = "wasm32"),
-            not(target_os = "unknown"),
-            feature = "openmp"
-        ),
-        target_os = "windows"
-    ))]
+    //#[cfg(any(
+    //    all(
+    //        not(target_arch = "wasm32"),
+    //        not(target_os = "unknown"),
+    //        feature = "openmp"
+    //    ),
+    //    target_os = "windows"
+    //))]
     //println!("cargo:rustc-link-lib=static=rawspeed");
+
     println!("cargo:rustc-link-lib=static=dng");
     println!("cargo:rustc-link-lib=static=jxl_threads");
     println!("cargo:rustc-link-lib=static=jxl");
