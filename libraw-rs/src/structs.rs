@@ -183,20 +183,20 @@ pub enum LibrawRawDataType {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LibrawData {
-    pub sizes: Option<LibrawImageSizes>,
-    pub idata: Option<LibrawIparams>,
+    pub sizes: LibrawImageSizes,
+    pub idata: LibrawIparams,
     pub lens: Option<LibrawLensinfo>,
-    pub makernotes: Option<LibrawMakernotes>,
+    pub makernotes: LibrawMakernotes,
     pub shootinginfo: Option<LibrawShootinginfo>,
     pub params: Option<LibrawOutputParams>,
     pub rawparams: Option<LibrawRawUnpackParams>,
     pub progress_flags: Option<u32>,
     pub process_warnings: Option<u32>,
-    pub color: Option<LibrawColordata>,
-    pub other: Option<LibrawImgother>,
+    pub color: LibrawColordata,
+    pub other: LibrawImgother,
     pub thumbnail: Option<LibrawThumbnail>,
     pub thumbs_list: Option<LibrawThumbnailList>,
-    pub rawdata: Option<LibrawRawdata>,
+    pub rawdata: LibrawRawdata,
 }
 
 impl From<&libraw_lensinfo_t> for LibrawLensinfo  {
@@ -436,42 +436,27 @@ impl From<&libraw_rawdata_t> for LibrawRawdata {
 
 impl From<Processor> for LibrawData {
     fn from(processor: Processor) -> Self {
-        Self {
-            sizes: Some(processor.sizes().into()),
-            idata: Some(processor.idata().into()),
-            lens: None,
-            makernotes: Some(processor.makernotes().into()),
-            shootinginfo: None,
-            params: None,
-            rawparams: None,
-            progress_flags: None,
-            process_warnings: None,
-            color: Some(processor.color().into()),
-            other: Some(processor.imgother().into()),
-            thumbnail: None,
-            thumbs_list: None,
-            rawdata: Some(processor.rawdata().into()),
-        }
+        Self::from(&processor)
     }
 }
 
 impl From<&Processor> for LibrawData {
     fn from(processor: &Processor) -> Self {
         Self {
-            sizes: Some(processor.sizes().into()),
-            idata: Some(processor.idata().into()),
+            sizes: processor.sizes().into(),
+            idata: processor.idata().into(),
             lens: None,
-            makernotes: None,
+            makernotes: processor.makernotes().into(),
             shootinginfo: None,
             params: None,
             rawparams: None,
             progress_flags: None,
             process_warnings: None,
-            color: Some(processor.color().into()),
-            other: Some(processor.imgother().into()),
+            color: processor.color().into(),
+            other: processor.imgother().into(),
             thumbnail: None,
             thumbs_list: None,
-            rawdata: Some(processor.rawdata().into()),
+            rawdata: processor.rawdata().into(),
         }
     }
 }
