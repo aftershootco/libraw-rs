@@ -706,6 +706,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "libraw_structs"
+version = "1.0.0-rc.2"
+dependencies = [
+ "libraw-sys",
+ "libraw_r",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "libredox"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

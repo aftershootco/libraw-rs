@@ -6,7 +6,6 @@ pub mod defaults;
 pub mod exif;
 pub mod orientation;
 pub mod progress;
-pub mod structs;
 pub mod traits;
 
 use alloc::sync::Arc;
