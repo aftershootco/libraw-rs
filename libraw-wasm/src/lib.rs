@@ -220,18 +220,13 @@ impl Processor {
         let _processed = self.dcraw_process_make_mem_image()?;
         let processed = _processed.raw();
 
-        // let data = unsafe {
-        //     std::slice::from_raw_parts(
-        //         processed.data.as_ptr() as *const u8,
-        //         processed.data_size as usize,
-        //     )
-        // };
-
         match ImageFormat::from(processed.type_) {
             ImageFormat::Bitmap => {
-                let colortype = match processed.bits {
-                    8 => image::ColorType::Rgb8,
-                    16 => image::ColorType::Rgb16,
+                let colortype = match (processed.colors, processed.bits) {
+                    (3, 8) => image::ColorType::Rgb8,
+                    (3, 16) => image::ColorType::Rgb16,
+                    (1, 8) => image::ColorType::L8,
+                    (1, 16) => image::ColorType::L16,
                     _ => return Err(2),
                 };
                 let mut jpeg = Vec::new();

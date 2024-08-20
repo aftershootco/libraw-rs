@@ -1,0 +1,13 @@
+[package]
+name = "libraw_structs"
+edition = "2021"
+version.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+libraw_r = { path = "../libraw-rs", optional = true }
+libraw-sys = { path = "../libraw-sys", optional = true }
+
+[features]
+libraw = ["dep:libraw_r", "dep:libraw-sys"]

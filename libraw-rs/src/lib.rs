@@ -6,7 +6,6 @@ pub mod defaults;
 pub mod exif;
 pub mod orientation;
 pub mod progress;
-pub mod structs;
 pub mod traits;
 
 use alloc::sync::Arc;
@@ -24,8 +23,15 @@ use core::ptr::NonNull;
 use core::sync::atomic::AtomicBool;
 use semver::Version;
 use std::ffi::CString;
-use std::ops::Drop;
 use std::path::Path;
+
+#[cfg(target_family = "windows")]
+pub const LIBRAW_RAWOPTIONS_DNG_STAGE3_IFPRESENT: i32 =
+    sys::LibRaw_processing_options_LIBRAW_RAWOPTIONS_DNG_STAGE3_IFPRESENT;
+
+#[cfg(target_family = "unix")]
+pub const LIBRAW_RAWOPTIONS_DNG_STAGE3_IFPRESENT: u32 =
+    sys::LibRaw_processing_options_LIBRAW_RAWOPTIONS_DNG_STAGE3_IFPRESENT;
 
 /// Returns the version of libraw
 pub const fn version() -> Version {
@@ -279,6 +285,11 @@ impl Processor {
     /// Get the output parameters
     pub fn params(&'_ mut self) -> &'_ mut sys::libraw_output_params_t {
         unsafe { &mut self.inner.as_mut().params }
+    }
+
+    /// Get the output rawparameters
+    pub fn rawparams(&'_ mut self) -> &'_ mut sys::libraw_raw_unpack_params_t {
+        unsafe { &mut self.inner.as_mut().rawparams }
     }
 
     /// Get the colordata
@@ -679,6 +690,7 @@ impl Processor {
         desired_width: u32,
         img_color: ColorType,
     ) -> Result<(fr::images::Image<'a>, u32, u32), LibrawError> {
+        use fr::PixelType;
         let desired_height = Self::maintain_aspect_ratio(img_width, img_height, desired_width);
         let pixel_type = match img_color {
             ColorType::Rgb8 => PixelType::U8x3,
@@ -724,6 +736,25 @@ impl ProcessorBuilder {
             inner: self.inner,
             dropped: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    pub fn with_raw_params<P: IntoIterator<Item = RawParams>>(mut self, raw_params: P) -> Self {
+        let libraw_params = unsafe { &mut self.inner.as_mut().rawparams };
+        for param in raw_params {
+            match param {
+                RawParams::UseDngSdk(v) => libraw_params.use_dngsdk = v,
+                RawParams::UseRawSpeed(v) => libraw_params.use_rawspeed = v,
+                RawParams::Options(v) => libraw_params.options |= v,
+                RawParams::ShotSelect(v) => libraw_params.shot_select = v,
+                RawParams::MaxRawMemoryMb(v) => libraw_params.max_raw_memory_mb = v,
+                RawParams::Specials(v) => libraw_params.specials = v,
+                RawParams::CoolscanNefGamma(v) => libraw_params.coolscan_nef_gamma = v,
+                RawParams::SonyArw2PosterizationThr(v) => {
+                    libraw_params.sony_arw2_posterization_thr = v
+                }
+            }
+        }
+        self
     }
 
     pub fn with_params<P: IntoIterator<Item = Params>>(mut self, params: P) -> Self {
@@ -843,6 +874,19 @@ impl ProcessedImage {
     pub fn size(&self) -> usize {
         self.raw().data_size as usize
     }
+}
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum RawParams {
+    UseRawSpeed(i32),
+    UseDngSdk(i32),
+    Options(u32),
+    ShotSelect(u32),
+    Specials(u32),
+    MaxRawMemoryMb(u32),
+    SonyArw2PosterizationThr(i32),
+    CoolscanNefGamma(f32),
 }
 
 #[derive(Debug)]

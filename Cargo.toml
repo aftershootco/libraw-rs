@@ -6,7 +6,7 @@ members = [
     "libraw-rs",
     "libraw-sys",
     "libraw-wasm",
-    "raw-rendering",
+    "structs",
     "tests",
 ]
 

@@ -1,0 +1,34 @@
+{
+  "version": "1.0.0",
+  "name": "libraw",
+  "dependencies": [
+    "dng-sdk",
+    "zlib",
+    "libpng",
+    {
+      "name": "libjpeg-turbo",
+      "default-features": false,
+      "features": ["jpeg8"]
+    },
+    "pugixml",
+    {
+      "name": "ipxcpucodec",
+      "platform": "!emscripten"
+    }
+  ],
+  "vcpkg-configuration": {
+    "default-registry": {
+      "kind": "git",
+      "baseline": "7eb700c9688daed6d8bdcdc571ebe3eedea6a774",
+      "repository": "https://github.com/microsoft/vcpkg"
+    },
+    "registries": [
+      {
+        "kind": "git",
+        "repository": "ssh://git@github.com/aftershootco/vcpkg-as-overlay",
+        "baseline": "86843db5e496d507b2b3c09ca29d557953976357",
+        "packages": ["dng-sdk", "ipxcpucodec","libjxl", "rawspeed", "xmp-toolkit"]
+      }
+    ]
+  }
+}

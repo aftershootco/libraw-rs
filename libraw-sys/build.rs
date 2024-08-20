@@ -1,6 +1,120 @@
-use std::path::{Path, PathBuf};
+use core::panic;
+use std::ffi::OsStr;
+use std::io::{BufRead, BufReader, Stderr, Stdout};
+use std::path::{Component, Path, PathBuf};
+use std::process::{Command, Stdio};
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+fn get_vcpkg_triplet() -> &'static str {
+    let target = std::env::var("TARGET").unwrap();
+    match target.as_str() {
+        "x86_64-apple-darwin" => "x64-osx",
+        "aarch64-apple-darwin" => "arm64-osx",
+        "x86_64-unknown-linux-gnu" => "x64-linux",
+        "x86_64-pc-windows-msvc" => "x64-windows-static-md",
+        "x86_64-pc-windows-gnu" => "x64-mingw-static",
+        "wasm32-unknown-emscripten" => "wasm32-emscripten",
+        "aarch64-pc-windows-msvc" => "arm64-windows-static-md",
+        &_ => panic!("Unsupported target {}", target),
+    }
+}
+
+fn vcpkg_install_command(vcpkg_path: impl AsRef<Path>, vcpkg_triplet: &str) -> Command {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+
+    let vcpkg_binary = vcpkg_path.as_ref().to_path_buf().join("vcpkg");
+
+    #[cfg(windows)]
+    {
+        let vcpkg_binary = vcpkg_binary.with_extension("exe");
+        if let Err(_) = std::env::var("GIT_SSH") {
+            let default_ssh = PathBuf::from("C:/Windows/System32/OpenSSH/ssh.exe");
+            eprintln!(
+                "GIT_SSH not set. Checking for existence at {:?}.",
+                default_ssh
+            );
+            if default_ssh.exists() {
+                println!("SSH agent found at {:?}", default_ssh);
+                std::env::set_var("GIT_SSH", default_ssh);
+            } else {
+                eprintln!("You might have a problem with ssh setup on your machine.");
+            }
+        }
+    }
+
+    let mut command = Command::new(vcpkg_binary);
+    command.arg("--triplet");
+    command.arg(vcpkg_triplet);
+    command.arg("install");
+
+    command.current_dir(&manifest_dir);
+    command
+}
+
+fn guess_vcpkg_dir(base: impl AsRef<Path>) -> Option<PathBuf> {
+    let base = base.as_ref().to_path_buf();
+    if let Some(index) = base
+        .components()
+        .position(|c| c == Component::Normal(OsStr::new("target")))
+    {
+        let guess = base
+            .components()
+            .take(index + 1)
+            .collect::<PathBuf>()
+            .join("vcpkg");
+
+        if guess.read_dir().ok()?.filter_map(|p| p.ok()).any(|p| {
+            p.path()
+                .file_name()
+                .map(|f| f == ".vcpkg-root")
+                .unwrap_or_default()
+        }) {
+            Some(guess)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+fn vcpkg_install(out_dir: impl AsRef<Path>) -> Result<String> {
+    let out_dir = out_dir.as_ref().to_path_buf();
+    let toolchain_dir = std::env::var("VCPKG_ROOT")
+        .map(|x| PathBuf::from(x))
+        .unwrap_or_else(|_| {
+            guess_vcpkg_dir(&out_dir).expect("Could not guess VCPKG_ROOT, please set it manually.")
+        });
+
+    let triplet = get_vcpkg_triplet();
+    let mut command = vcpkg_install_command(&toolchain_dir, triplet);
+    command.arg(&format!(
+        "--x-install-root={}/vcpkg_installed",
+        &out_dir.display()
+    ));
+    command.stdin(Stdio::inherit());
+    command.stdout(Stdio::inherit());
+    command.stderr(Stdio::inherit());
+
+    let output = command.spawn().unwrap().wait_with_output().unwrap();
+
+    if !output.status.success() {
+        return Err("Failed vcpkg install".into());
+    }
+
+    println!(
+        "cargo:rustc-link-search=native={}/vcpkg_installed/{}/lib",
+        &out_dir.display(),
+        triplet
+    );
+
+    Ok(format!(
+        "{}/vcpkg_installed/{}/include",
+        &out_dir.display(),
+        triplet
+    ))
+}
 
 fn main() -> Result<()> {
     println!("cargo:rerun-if-changed=build.rs");
@@ -33,7 +147,9 @@ fn main() -> Result<()> {
         .to_string_lossy()
     );
 
-    build(out_dir, &libraw_dir)?;
+    let vcpkg_include_dir = vcpkg_install(out_dir)?;
+
+    build(out_dir, &libraw_dir, &vcpkg_include_dir)?;
 
     #[cfg(all(feature = "bindgen"))]
     bindings(out_dir, &libraw_dir)?;
@@ -43,30 +159,23 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> {
+fn build(
+    out_dir: impl AsRef<Path>,
+    libraw_dir: impl AsRef<Path>,
+    vcpkg_include_dir: &str,
+) -> Result<()> {
     std::env::set_current_dir(out_dir.as_ref()).expect("Unable to set current dir");
 
     let mut libraw = cc::Build::new();
     libraw.cpp(true);
     libraw.include(libraw_dir.as_ref());
 
-    #[cfg(feature = "zlib")]
-    if let Ok(path) = std::env::var("DEP_Z_INCLUDE") {
-        libraw.include(path);
-    }
-
     // Fix builds on msys2
-    #[cfg(windows)]
-    libraw.define("HAVE_BOOLEAN", None);
     #[cfg(windows)]
     libraw.define("LIBRAW_WIN32_DLLDEFS", None);
     #[cfg(windows)]
     libraw.define("LIBRAW_BUILDLIB", None);
 
-    #[cfg(feature = "jpeg")]
-    if let Ok(path) = std::env::var("DEP_JPEG_INCLUDE") {
-        libraw.includes(std::env::split_paths(&path));
-    }
     // libraw.files(sources);
     // if Path::new("libraw/src/decoders/pana8.cpp").exists() {
     //     libraw.file("libraw/src/decoders/pana8.cpp");
@@ -78,7 +187,7 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
     //     libraw.file("libraw/src/decompressors/losslessjpeg.cpp");
     // }
 
-    let sources = [
+    let mut sources = vec![
         "src/decoders/canon_600.cpp",
         "src/decoders/crx.cpp",
         "src/decoders/decoders_dcraw.cpp",
@@ -104,10 +213,11 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
         "src/demosaic/misc_demosaic.cpp",
         "src/demosaic/xtrans_demosaic.cpp",
         "src/integration/dngsdk_glue.cpp",
-        "src/integration/rawspeed_glue.cpp",
+        //"src/integration/rawspeed_glue.cpp",
         "src/libraw_c_api.cpp",
         "src/libraw_datastream.cpp",
         "src/metadata/adobepano.cpp",
+        "src/metadata/callbacks.cpp",
         "src/metadata/canon.cpp",
         "src/metadata/ciff.cpp",
         "src/metadata/cr3_parser.cpp",
@@ -131,6 +241,7 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
         "src/metadata/samsung.cpp",
         "src/metadata/sony.cpp",
         "src/metadata/tiff.cpp",
+        "src/metadata/dcp_tiff.cpp",
         "src/postprocessing/aspect_ratio.cpp",
         "src/postprocessing/dcraw_process.cpp",
         "src/postprocessing/mem_image.cpp",
@@ -164,6 +275,20 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
         //"src/write/write_ph.cpp"
     ];
 
+    // Don't set if emscripten as rawspeed doesn't build on wasm yet
+    //#[cfg(any(
+    //    all(
+    //        not(target_arch = "wasm32"),
+    //        not(target_os = "unknown"),
+    //        feature = "openmp"
+    //    ),
+    //    target_os = "windows"
+    //))]
+    //{
+    //    sources.push("RawSpeed3/rawspeed3_c_api/rawspeed3_capi.cpp");
+    //    sources.push("../src/rawspeed_cameras.cpp");
+    //}
+
     let sources = sources
         .iter()
         .filter_map(|s| dunce::canonicalize(libraw_dir.as_ref().join(s)).ok())
@@ -178,6 +303,31 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
     }
 
     libraw.files(sources);
+
+    libraw.include(vcpkg_include_dir);
+    libraw.include(format!("{}/dng_sdk", vcpkg_include_dir));
+    //libraw.include(format!("{}/rawspeed", vcpkg_include_dir));
+    //libraw.include(format!("{}/rawspeed/external", vcpkg_include_dir));
+    libraw.include(format!("{}/IpxCpuCodec", vcpkg_include_dir));
+    //libraw.include(format!(
+    //    "{}/RawSpeed3/rawspeed3_c_api",
+    //    libraw_dir.as_ref().display()
+    //));
+    //libraw.include(format!(
+    //    "{}/RawSpeed3/rawspeed3_c_api",
+    //    libraw_dir.as_ref().display()
+    //));
+
+    #[cfg(unix)]
+    {
+        libraw.flag_if_supported("-std=c++20");
+    }
+    #[cfg(windows)]
+    {
+        libraw.flag_if_supported("/std:c++20");
+        libraw.flag_if_supported("/Zc:preprocessor");
+        libraw.flag_if_supported("/EHsc");
+    }
 
     libraw.warnings(false);
     libraw.extra_warnings(false);
@@ -227,26 +377,34 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
     libraw.flag_if_supported("-pthread");
 
     // Add libraries
-    #[cfg(feature = "jpeg")]
-    libraw.flag("-DUSE_JPEG");
+    libraw.flag("-DUSE_DNGSDK");
 
-    #[cfg(feature = "zlib")]
+    // Don't set if emscripten as rawspeed doesn't build on wasm yet
+    //#[cfg(any(
+    //    all(
+    //        not(target_arch = "wasm32"),
+    //        not(target_os = "unknown"),
+    //        feature = "openmp"
+    //    ),
+    //    target_os = "windows"
+    //))]
+    //{
+    //    libraw.flag("-DRAWSPEED_BUILDLIB");
+    //    libraw.flag("-DUSE_RAWSPEED3");
+    //}
+
+    libraw.flag("-DUSE_X3FTOOLS");
+
+    libraw.flag("-DUSE_JPEG");
+    libraw.flag("-DUSE_JPEG8");
+
     libraw.flag("-DUSE_ZLIB");
 
-    // #[cfg(feature = "jasper")]
-    // libraw.flag("-DUSE_JASPER");
-
-    #[cfg(target_os = "linux")]
-    libraw.cpp_link_stdlib("stdc++");
-
-    #[cfg(target_os = "macos")]
-    libraw.cpp_link_stdlib("c++");
-
-    #[cfg(unix)]
-    libraw.static_flag(true);
-
-    #[cfg(windows)]
-    libraw.static_crt(true);
+    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "unknown")))]
+    {
+        libraw.flag("-DUSE_INTOPIX_CPU_CODEC");
+        libraw.flag("-DIPXCPUCODEC_LIB_STATIC");
+    }
 
     libraw.compile("raw_r");
 
@@ -255,12 +413,70 @@ fn build(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> 
         out_dir.as_ref().join("lib").display()
     );
     println!("cargo:rustc-link-lib=static=raw_r");
-    #[cfg(feature = "jpeg")]
-    if let Ok(name) = std::env::var("DEP_JPEG_NAME") {
-        println!("cargo:rustc-link-lib=static={name}");
+
+    //#[cfg(any(
+    //    all(
+    //        not(target_arch = "wasm32"),
+    //        not(target_os = "unknown"),
+    //        feature = "openmp"
+    //    ),
+    //    target_os = "windows"
+    //))]
+    //println!("cargo:rustc-link-lib=static=rawspeed");
+
+    println!("cargo:rustc-link-lib=static=dng");
+    println!("cargo:rustc-link-lib=static=jxl_threads");
+    println!("cargo:rustc-link-lib=static=jxl");
+    println!("cargo:rustc-link-lib=static=jxl_cms");
+    println!("cargo:rustc-link-lib=static=lcms2");
+    println!("cargo:rustc-link-lib=static=hwy");
+    println!("cargo:rustc-link-lib=static=brotlidec");
+    println!("cargo:rustc-link-lib=static=brotlienc");
+    println!("cargo:rustc-link-lib=static=brotlicommon");
+    println!("cargo:rustc-link-lib=static=jpeg");
+    println!("cargo:rustc-link-lib=static=pugixml");
+    println!("cargo:rustc-link-lib=static=XMP");
+
+    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "unknown")))]
+    {
+        println!("cargo:rustc-link-lib=static=IpxCpuCodec_static");
     }
-    #[cfg(feature = "zlib")]
-    println!("cargo:rustc-link-lib=static=z");
+
+    #[cfg(target_os = "macos")]
+    {
+        println!("cargo:rustc-link-lib=framework=CoreFoundation");
+        println!("cargo:rustc-link-lib=framework=CoreServices");
+        println!("cargo:rustc-link-lib=static=expat");
+        println!("cargo:rustc-link-lib=static=png16");
+        println!("cargo:rustc-link-lib=static=z");
+    }
+    #[cfg(target_os = "linux")]
+    {
+        println!("cargo:rustc-link-lib=static=expat");
+        println!("cargo:rustc-link-lib=static=png16");
+        println!("cargo:rustc-link-lib=static=z");
+    }
+    #[cfg(target_os = "windows")]
+    {
+        println!("cargo:rustc-link-lib=static=libexpatMD");
+        println!("cargo:rustc-link-lib=static=libpng16");
+        println!("cargo:rustc-link-lib=static=zlib");
+        // Needed by IntoPix
+        println!("cargo:rustc-link-lib=iphlpapi");
+    }
+
+    // Needed for libgomp linking on Linux, otherwise undefined references are thrown
+    #[cfg(target_os = "linux")]
+    if let Some(link) = std::env::var_os("DEP_OPENMP_CARGO_LINK_INSTRUCTIONS") {
+        for i in std::env::split_paths(&link) {
+            println!("cargo:{}", i.display());
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    println!("cargo:rustc-link-lib=c++");
+    #[cfg(target_os = "linux")]
+    println!("cargo:rustc-link-lib=stdc++");
 
     Ok(())
 }

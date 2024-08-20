@@ -1,8 +1,0 @@
-[package]
-name = "raw_rendering"
-version.workspace = true
-
-[dependencies]
-libraw_r = { path = "../libraw-rs" }
-serde.workspace = true
-serde_json.workspace = true

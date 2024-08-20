@@ -13,10 +13,6 @@ links = "raw_r"
 
 [dependencies]
 libc = "0.2.123"
-libz-sys = { version = "1.1.8", optional = true, features = ["static"], default-features = false }
-# We want to switch out to libjpeg-turbo but currently the build system depends cmake and doesn't build on windows for some reason
-# mozjpeg-sys = { path = "/Users/fs0c131y/Projects/aftershoot/mozjpeg-sys", optional = true,  features = ["jpeg80_abi", "nasm_simd", "with_simd", "nasm_simd_parallel_build", "parallel"] }
-libjpeg-sys = { git = "https://github.com/aftershootco/libjpeg-sys", optional = true }
 openmp-sys = { version = "1.2.3", optional = true }
 
 [build-dependencies]
@@ -28,10 +24,11 @@ fs_extra = "1.3.0"
 dunce = "1.0.3"
 
 [features]
-default = ["jpeg", "zlib", "bindgen"]
+default = ["bindgen", "jpeg"]
 bindgen = ["dep:bindgen"]
+jpeg = []
 copy = []
-zlib = ["dep:libz-sys"]
-jpeg = ["dep:libjpeg-sys"]
 openmp = ["dep:openmp-sys"]
 openmp_static = ["openmp", "openmp-sys?/static"]
+
+

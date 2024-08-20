@@ -1,6 +1,5 @@
 extern crate alloc;
 
-use std::fmt::write;
 
 use alloc::{boxed::Box, vec::Vec};
 use libraw_wasm::*;
@@ -32,7 +31,8 @@ pub unsafe extern "C" fn buffet(data: *mut u8, len: usize) -> *mut JsBytes {
     let mut proc = Processor::default();
     proc.open_buffer(buffer).unwrap();
     let res = proc.to_jpeg_no_rotation(80).unwrap();
-    JsBytes::new(res)
+    let img = image::load_from_memory_with_format(&res, image::ImageFormat::Jpeg).unwrap();
+    JsBytes::new(img.to_rgb8().to_vec())
 }
 
 #[no_mangle]
