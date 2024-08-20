@@ -376,8 +376,11 @@ fn build(
     // thread safety
     libraw.flag_if_supported("-pthread");
 
+    let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
     // Add libraries
-    libraw.flag("-DUSE_DNGSDK");
+    if os != "emscripten" {
+        libraw.flag("-DUSE_DNGSDK");
+    }
 
     // Don't set if emscripten as rawspeed doesn't build on wasm yet
     //#[cfg(any(
@@ -400,7 +403,8 @@ fn build(
 
     libraw.flag("-DUSE_ZLIB");
 
-    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "unknown")))]
+
+    if os != "emscripten"
     {
         libraw.flag("-DUSE_INTOPIX_CPU_CODEC");
         libraw.flag("-DIPXCPUCODEC_LIB_STATIC");
@@ -424,7 +428,9 @@ fn build(
     //))]
     //println!("cargo:rustc-link-lib=static=rawspeed");
 
-    println!("cargo:rustc-link-lib=static=dng");
+    if os != "emscripten" {
+        println!("cargo:rustc-link-lib=static=dng");
+    }
     println!("cargo:rustc-link-lib=static=jxl_threads");
     println!("cargo:rustc-link-lib=static=jxl");
     println!("cargo:rustc-link-lib=static=jxl_cms");
@@ -437,7 +443,8 @@ fn build(
     println!("cargo:rustc-link-lib=static=pugixml");
     println!("cargo:rustc-link-lib=static=XMP");
 
-    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "unknown")))]
+
+    if os != "emscripten"
     {
         println!("cargo:rustc-link-lib=static=IpxCpuCodec_static");
     }

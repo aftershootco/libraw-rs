@@ -683,16 +683,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c198f91728a82281a64e1f4f9eeb25d82cb32a5de251c6bd1b5154d63a8e7bd"
 
 [[package]]
-name = "libjpeg-sys"
-version = "0.1.0"
-source = "git+https://github.com/aftershootco/libjpeg-sys#602bf3541c8ac0def2c84982888e7e0b7f900d50"
-dependencies = [
- "anyhow",
- "cmake",
- "tap",
-]
-
-[[package]]
 name = "libloading"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -711,8 +701,6 @@ dependencies = [
  "dunce",
  "fs_extra",
  "libc",
- "libjpeg-sys",
- "libz-sys",
  "openmp-sys",
  "pkg-config",
  "shellexpand",
@@ -730,11 +718,22 @@ dependencies = [
  "img-parts",
  "libc",
  "libraw-sys",
+ "rayon",
  "semver",
  "serde",
  "thiserror",
  "turbojpeg",
  "widestring",
+]
+
+[[package]]
+name = "libraw_structs"
+version = "1.0.0-rc.2"
+dependencies = [
+ "libraw-sys",
+ "libraw_r",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -754,17 +753,6 @@ checksum = "c0ff37bd590ca25063e35af745c343cb7a0271906fb7b37e4813e8f79f00268d"
 dependencies = [
  "bitflags 2.5.0",
  "libc",
-]
-
-[[package]]
-name = "libz-sys"
-version = "1.1.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c15da26e5af7e25c90b37a2d75cdbf940cf4a55316de9d84c679c9b8bfabf82e"
-dependencies = [
- "cc",
- "pkg-config",
- "vcpkg",
 ]
 
 [[package]]
@@ -1000,15 +988,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "raw_rendering"
-version = "1.0.0-rc.2"
-dependencies = [
- "libraw_r",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "rayon"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1202,12 +1181,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tap"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
-
-[[package]]
 name = "tests"
 version = "0.1.0"
 dependencies = [
@@ -1284,12 +1257,6 @@ name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
-
-[[package]]
-name = "vcpkg"
-version = "0.2.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "walkdir"
