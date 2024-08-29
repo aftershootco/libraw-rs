@@ -927,15 +927,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "raw_rendering"
-version = "1.0.0-rc.2"
-dependencies = [
- "libraw_r",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "rayon"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

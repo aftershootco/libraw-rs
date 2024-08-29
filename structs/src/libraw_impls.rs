@@ -208,56 +208,48 @@ impl From<&libraw_imgother_t> for LibrawImgother {
 
 impl From<&libraw_rawdata_t> for LibrawRawdata {
     fn from(value: &libraw_rawdata_t) -> Self {
-        let size;
-        let data_type: LibrawRawDataType;
-        let data = match () {
-            _ if !value.raw_image.is_null() => {
-                data_type = LibrawRawDataType::RawImage;
-                size = value.sizes.raw_width as usize * value.sizes.raw_height as usize;
-                let raw_image = unsafe { slice::from_raw_parts(value.raw_image, size) };
-                raw_image.iter().map(|i| *i as f32).collect::<Vec<f32>>()
-            }
-            _ if !value.color3_image.is_null() => {
-                data_type = LibrawRawDataType::Color3Image;
-                size = value.sizes.raw_width as usize * value.sizes.raw_height as usize * 3;
-                let raw_image = unsafe { core::mem::transmute(value.color3_image) };
-                let raw_image: &[u16] = unsafe { slice::from_raw_parts(raw_image, size) };
-                raw_image.iter().map(|i| *i as f32).collect::<Vec<f32>>()
-            }
-            _ if !value.color4_image.is_null() => {
-                data_type = LibrawRawDataType::Color4Image;
-                size = value.sizes.raw_width as usize * value.sizes.raw_height as usize * 4;
-                //let mut data = vec![0.0; size];
-                let raw_image = unsafe { core::mem::transmute(value.color3_image) };
-                let raw_image: &[u16] = unsafe { slice::from_raw_parts(raw_image, size) };
-                raw_image.iter().map(|i| *i as f32).collect::<Vec<f32>>()
-            }
-            _ if !value.float_image.is_null() => {
-                data_type = LibrawRawDataType::FloatImage;
-                size = value.sizes.raw_width as usize * value.sizes.raw_height as usize;
-                let raw_image = unsafe { slice::from_raw_parts(value.float_image, size) };
-                raw_image.to_vec()
-            }
-            _ if !value.float3_image.is_null() => {
-                data_type = LibrawRawDataType::Float3Image;
-                size = value.sizes.raw_width as usize * value.sizes.raw_height as usize * 3;
-                let raw_image = unsafe { core::mem::transmute(value.color3_image) };
-                let raw_image = unsafe { slice::from_raw_parts(raw_image, size) };
-                raw_image.to_vec()
-            }
-            _ if !value.float4_image.is_null() => {
-                data_type = LibrawRawDataType::Float4Image;
-                size = value.sizes.raw_width as usize * value.sizes.raw_height as usize * 4;
-                let raw_image = unsafe { core::mem::transmute(value.color4_image) };
-                let raw_image = unsafe { slice::from_raw_parts(raw_image, size) };
-                raw_image.to_vec()
-            }
-            _ => {
-                return LibrawRawdata {
-                    data_type: None,
-                    data: None,
-                };
-            }
+        let (data_type, data) = if !value.raw_image.is_null() {
+            let size = value.sizes.raw_width as usize * value.sizes.raw_height as usize;
+            let raw_image = unsafe { slice::from_raw_parts(value.raw_image, size) };
+            (
+                LibrawRawDataType::RawImage,
+                raw_image.iter().map(|i| *i as f32).collect::<Vec<f32>>(),
+            )
+        } else if !value.color3_image.is_null() {
+            let size = value.sizes.raw_width as usize * value.sizes.raw_height as usize * 3;
+            let raw_image = unsafe { core::mem::transmute(value.color3_image) };
+            let raw_image: &[u16] = unsafe { slice::from_raw_parts(raw_image, size) };
+            (
+                LibrawRawDataType::Color3Image,
+                raw_image.iter().map(|i| *i as f32).collect::<Vec<f32>>(),
+            )
+        } else if !value.color4_image.is_null() {
+            let size = value.sizes.raw_width as usize * value.sizes.raw_height as usize * 4;
+            let raw_image = unsafe { core::mem::transmute(value.color4_image) };
+            let raw_image: &[u16] = unsafe { slice::from_raw_parts(raw_image, size) };
+            (
+                LibrawRawDataType::Color4Image,
+                raw_image.iter().map(|i| *i as f32).collect::<Vec<f32>>(),
+            )
+        } else if !value.float_image.is_null() {
+            let size = value.sizes.raw_width as usize * value.sizes.raw_height as usize;
+            let raw_image = unsafe { slice::from_raw_parts(value.float_image, size) };
+            (LibrawRawDataType::FloatImage, raw_image.to_vec())
+        } else if !value.float3_image.is_null() {
+            let size = value.sizes.raw_width as usize * value.sizes.raw_height as usize * 3;
+            let raw_image = unsafe { core::mem::transmute(value.float3_image) };
+            let raw_image = unsafe { slice::from_raw_parts(raw_image, size) };
+            (LibrawRawDataType::Float3Image, raw_image.to_vec())
+        } else if !value.float4_image.is_null() {
+            let size = value.sizes.raw_width as usize * value.sizes.raw_height as usize * 4;
+            let raw_image = unsafe { core::mem::transmute(value.float4_image) };
+            let raw_image = unsafe { slice::from_raw_parts(raw_image, size) };
+            (LibrawRawDataType::Float4Image, raw_image.to_vec())
+        } else {
+            return LibrawRawdata {
+                data_type: None,
+                data: None,
+            };
         };
 
         LibrawRawdata {
