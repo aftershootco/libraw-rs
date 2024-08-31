@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawIparams {
     pub make: String,
     pub model: String,
@@ -12,7 +12,7 @@ pub struct LibrawIparams {
     pub xtrans: [[i8; 6]; 6],
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawImageSizes {
     pub raw_height: u16,
     pub raw_width: u16,
@@ -29,7 +29,7 @@ pub struct LibrawImageSizes {
     pub raw_inset_crops: [LibrawRawInsetCrops; 2usize],
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawRawInsetCrops {
     pub cleft: u16,
     pub ctop: u16,
@@ -37,18 +37,18 @@ pub struct LibrawRawInsetCrops {
     pub cheight: u16,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawLensinfo {
     pub libraw_nikonlens: LibrawNikonlens,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawNikonlens {
     pub radial_distortion: NikonLensRadialdistortion,
     pub vignette_correction: NikonLensVignettecorrection,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NikonLensRadialdistortion {
     pub version: String,
     pub on: u8,
@@ -58,7 +58,7 @@ pub struct NikonLensRadialdistortion {
     pub radial_distortion4: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NikonLensVignettecorrection {
     pub version: String,
     pub vignette_correction1: f32,
@@ -67,34 +67,34 @@ pub struct NikonLensVignettecorrection {
     pub vignette_correction4: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawMakernotes {
     pub libraw_fuji_info: LibrawFujiInfo,
     pub libraw_canon_makernotes_t: LibrawCanonMakernotes,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawCanonMakernotes {
     pub focus_distance_lower: f32,
     pub focus_distance_upper: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawFujiInfo {
     pub fuji_width: u16,
     pub fuji_layout: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawShootinginfo {}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawOutputParams {}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawRawUnpackParams {}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawDngColor {
     pub parsedfields: u32,
     pub illuminant: u16,
@@ -103,7 +103,7 @@ pub struct LibrawDngColor {
     pub forwardmatrix: [[f32; 4usize]; 3usize],
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawDngLevels {
     pub parsedfields: u32,
     pub dng_cblack: Vec<u32>,
@@ -121,7 +121,7 @@ pub struct LibrawDngLevels {
     pub shadow_scale: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawColordata {
     pub cblack: Vec<u32>,
     pub black: u32,
@@ -137,7 +137,7 @@ pub struct LibrawColordata {
     pub dng_profile: Option<Vec<u8>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawImgother {
     pub iso_speed: f32,
     pub shutter: f32,
@@ -151,19 +151,19 @@ pub struct LibrawImgother {
     pub analogbalance: [f32; 4usize],
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawThumbnail {}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawThumbnailList {}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawRawdata {
     pub data_type: Option<LibrawRawDataType>,
     pub data: Option<Vec<f32>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum LibrawRawDataType {
     RawImage,
     Color4Image,
@@ -173,7 +173,7 @@ pub enum LibrawRawDataType {
     Float4Image,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LibrawData {
     pub sizes: LibrawImageSizes,
     pub idata: LibrawIparams,
