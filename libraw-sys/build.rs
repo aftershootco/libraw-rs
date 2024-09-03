@@ -400,8 +400,12 @@ fn build(
 
     libraw.flag("-DUSE_ZLIB");
 
-    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "unknown")))]
-    {
+    let intopix_enabled = match std::env::var("TARGET").unwrap().as_str() {
+        "wasm32-unknown-emscripten" => false,
+        "aarch64-pc-windows-msvc" => false,
+        &_ => true,
+    };
+    if intopix_enabled {
         libraw.flag("-DUSE_INTOPIX_CPU_CODEC");
         libraw.flag("-DIPXCPUCODEC_LIB_STATIC");
     }
@@ -437,8 +441,7 @@ fn build(
     println!("cargo:rustc-link-lib=static=pugixml");
     println!("cargo:rustc-link-lib=static=XMP");
 
-    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "unknown")))]
-    {
+    if intopix_enabled {
         println!("cargo:rustc-link-lib=static=IpxCpuCodec_static");
     }
 
