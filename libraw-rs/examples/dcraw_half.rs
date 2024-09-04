@@ -19,15 +19,15 @@ pub fn main() -> anyhow::Result<()> {
             p.idata().make.as_ascii(),
             p.idata().model.as_ascii(),
         );
-        p.unpack()?;
         #[cfg(not(feature = "jpeg"))]
         {
+            p.unpack()?;
             p.dcraw_process()?;
             p.dcraw_ppm_tiff_writer(Path::new(&arg).with_extension("ppm"))?;
             println!("Writing to {arg}.ppm");
         }
         #[cfg(feature = "jpeg")]
-        p.to_jpeg_no_rotation(80, None)?;
+        std::fs::write("new.jpeg", p.to_jpeg_no_rotation(80, None)?);
     }
     Ok(())
 }
