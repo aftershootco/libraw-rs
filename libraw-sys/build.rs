@@ -23,11 +23,11 @@ fn get_vcpkg_triplet() -> &'static str {
 fn vcpkg_install_command(vcpkg_path: impl AsRef<Path>, vcpkg_triplet: &str) -> Command {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
 
-    let vcpkg_binary = vcpkg_path.as_ref().to_path_buf().join("vcpkg");
+    let mut vcpkg_binary = vcpkg_path.as_ref().to_path_buf().join("vcpkg");
 
     #[cfg(windows)]
     {
-        let vcpkg_binary = vcpkg_binary.with_extension("exe");
+        vcpkg_binary = vcpkg_binary.with_extension("exe");
         if let Err(_) = std::env::var("GIT_SSH") {
             let default_ssh = PathBuf::from("C:/Windows/System32/OpenSSH/ssh.exe");
             eprintln!(
@@ -89,10 +89,10 @@ fn vcpkg_install(out_dir: impl AsRef<Path>) -> Result<String> {
 
     let triplet = get_vcpkg_triplet();
     let mut command = vcpkg_install_command(&toolchain_dir, triplet);
-    command.arg(&format!(
-        "--x-install-root={}/vcpkg_installed",
-        &out_dir.display()
-    ));
+    command.args([
+        &format!("--x-install-root={}/vcpkg_installed", &out_dir.display()),
+        "--x-wait-for-lock",
+    ]);
     command.stdin(Stdio::inherit());
     command.stdout(Stdio::inherit());
     command.stderr(Stdio::inherit());
