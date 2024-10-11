@@ -199,6 +199,7 @@ fn build(
         "src/decoders/generic.cpp",
         "src/decoders/kodak_decoders.cpp",
         "src/decoders/load_mfbacks.cpp",
+        "src/decoders/nikonhe.cpp",
         "src/decoders/olympus14.cpp",
         "src/decoders/pana8.cpp",
         "src/decoders/smal.cpp",
