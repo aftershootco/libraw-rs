@@ -1,6 +1,5 @@
 use core::panic;
 use std::ffi::OsStr;
-use std::io::{BufRead, BufReader, Stderr, Stdout};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -149,10 +148,16 @@ fn main() -> Result<()> {
 
     let vcpkg_include_dir = vcpkg_install(out_dir)?;
 
-    build(out_dir, &libraw_dir, &vcpkg_include_dir)?;
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+    build(out_dir, &libraw_dir, &vcpkg_include_dir, &target_os)?;
 
-    #[cfg(all(feature = "bindgen"))]
-    bindings(out_dir, &libraw_dir)?;
+    #[cfg(feature = "bindgen")]
+    bindings(
+        out_dir,
+        &libraw_dir,
+        #[cfg(feature = "copy")]
+        &target_os
+    )?;
 
     let _ = out_dir;
 
@@ -163,6 +168,7 @@ fn build(
     out_dir: impl AsRef<Path>,
     libraw_dir: impl AsRef<Path>,
     vcpkg_include_dir: &str,
+    target_os: &str
 ) -> Result<()> {
     std::env::set_current_dir(out_dir.as_ref()).expect("Unable to set current dir");
 
@@ -170,11 +176,13 @@ fn build(
     libraw.cpp(true);
     libraw.include(libraw_dir.as_ref());
 
-    // Fix builds on msys2
-    #[cfg(windows)]
-    libraw.define("LIBRAW_WIN32_DLLDEFS", None);
-    #[cfg(windows)]
-    libraw.define("LIBRAW_BUILDLIB", None);
+    if target_os == "windows" || target_os == "emscripten" {
+        // Fix builds on msys2
+        libraw.define("LIBRAW_WIN32_DLLDEFS", None);
+        libraw.define("LIBRAW_BUILDLIB", None);
+        libraw.define("LIBRAW_NODLL", "1");
+    }
+
 
     // libraw.files(sources);
     // if Path::new("libraw/src/decoders/pana8.cpp").exists() {
@@ -187,7 +195,7 @@ fn build(
     //     libraw.file("libraw/src/decompressors/losslessjpeg.cpp");
     // }
 
-    let mut sources = vec![
+    let sources = vec![
         "src/decoders/canon_600.cpp",
         "src/decoders/crx.cpp",
         "src/decoders/decoders_dcraw.cpp",
@@ -323,8 +331,7 @@ fn build(
     {
         libraw.flag_if_supported("-std=c++20");
     }
-    #[cfg(windows)]
-    {
+    if target_os == "windows" {
         libraw.flag_if_supported("/std:c++20");
         libraw.flag_if_supported("/Zc:preprocessor");
         libraw.flag_if_supported("/EHsc");
@@ -486,7 +493,12 @@ fn build(
 }
 
 #[cfg(feature = "bindgen")]
-fn bindings(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<()> {
+fn bindings(
+    out_dir: impl AsRef<Path>,
+    libraw_dir: impl AsRef<Path>,
+    #[cfg(feature = "copy")]
+    target_os: &str
+) -> Result<()> {
     let bindings = bindgen::Builder::default()
         .header(
             libraw_dir
@@ -495,6 +507,7 @@ fn bindings(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<(
                 .join("libraw.h")
                 .to_string_lossy(),
         )
+        .clang_arg("-fvisibility=default") // Needed for wasm32-unknown-emscripten, otherwise the bindings will not be generated
         .use_core()
         .ctypes_prefix("libc")
         .generate_comments(true)
@@ -604,22 +617,25 @@ fn bindings(out_dir: impl AsRef<Path>, libraw_dir: impl AsRef<Path>) -> Result<(
         .expect("Couldn't write bindings!");
 
     #[cfg(feature = "copy")]
-    bindings
-        .write_to_file(
-            #[cfg(target_os = "linux")]
+    {
+        let path = if target_os == "linux" || target_os == "emscripten" {
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("src")
-                .join("linux.rs"),
-            #[cfg(target_os = "macos")]
+                .join("linux.rs")
+        } else if target_os == "macos" {
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("src")
-                .join("macos.rs"),
-            #[cfg(target_family = "windows")]
+                .join("macos.rs")
+        } else if target_os == "windows" {
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("src")
-                .join("windows.rs"),
-        )
-        .expect("Failed to write bindings");
+                .join("windows.rs")
+        } else {
+            panic!("Unsupported bindings for OS: {}", target_os);
+        };
+
+        bindings.write_to_file(path).expect("Failed to write bindings");
+    }
     Ok(())
 }
 
