@@ -27,19 +27,19 @@ fn vcpkg_install_command(vcpkg_path: impl AsRef<Path>, vcpkg_triplet: &str) -> C
     #[cfg(windows)]
     {
         vcpkg_binary = vcpkg_binary.with_extension("exe");
-        if let Err(_) = std::env::var("GIT_SSH") {
-            let default_ssh = PathBuf::from("C:/Windows/System32/OpenSSH/ssh.exe");
-            eprintln!(
-                "GIT_SSH not set. Checking for existence at {:?}.",
-                default_ssh
-            );
-            if default_ssh.exists() {
-                println!("SSH agent found at {:?}", default_ssh);
-                std::env::set_var("GIT_SSH", default_ssh);
-            } else {
-                eprintln!("You might have a problem with ssh setup on your machine.");
-            }
-        }
+        //if let Err(_) = std::env::var("GIT_SSH") {
+        //    let default_ssh = PathBuf::from("C:/Windows/System32/OpenSSH/ssh.exe");
+        //    eprintln!(
+        //        "GIT_SSH not set. Checking for existence at {:?}.",
+        //        default_ssh
+        //    );
+        //    if default_ssh.exists() {
+        //        println!("SSH agent found at {:?}", default_ssh);
+        //        std::env::set_var("GIT_SSH", default_ssh);
+        //    } else {
+        //        eprintln!("You might have a problem with ssh setup on your machine.");
+        //    }
+        //}
     }
 
     let mut command = Command::new(vcpkg_binary);
